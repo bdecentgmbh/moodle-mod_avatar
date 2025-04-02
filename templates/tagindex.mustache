@@ -1,0 +1,18 @@
+{{#avatars}}
+<div class="avatar-item mb-4">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{name}}</h5>
+            <p class="card-text">{{{description}}}</p>
+            <a href="{{config.wwwroot}}/mod/avatar/view_avatar.php?avatarid={{id}}" class="btn btn-primary">
+                {{#str}}viewavatar, mod_avatar{{/str}}
+            </a>
+        </div>
+    </div>
+</div>
+{{/avatars}}
+{{^avatars}}
+<div class="alert alert-info">
+    {{#str}}noavatarsfound, mod_avatar{{/str}}
+</div>
+{{/avatars}}

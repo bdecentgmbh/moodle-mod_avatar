@@ -1,0 +1,98 @@
+<div class="mod_avatar {{#displaymodepage}}display-page{{/displaymodepage}}{{#displaymodeinline}}display-inline{{/displaymodeinline}} {{#inline_display}}mod-avatar-inline{{/inline_display}}">
+    {{#hasavatars}}
+    <div class="avatar-popover-container">
+        {{{avatar_popover}}}
+    </div>
+    {{#headercontent}}
+    <div class="avatar-header mb-4">
+        {{{headercontent}}}
+    </div>
+    {{/headercontent}}
+    <div class="avatar-title-container">
+        <h2 class="avatar-title">{{#str}}pickyouravatar, mod_avatar{{/str}}</h2>
+        {{#has_availability_restriction}}
+        <div class="alert alert-warning" role="alert">
+            <h3>{{#str}}limitedavailability, mod_avatar{{/str}}</h3>
+            {{#isavailable}}
+            <p>{{availability_message}}</p>
+            {{/isavailable}}
+                {{^isavailable}}
+            <p>{{#str}}limitreached, mod_avatar{{/str}}</p>
+            {{/isavailable}}
+        </div>
+        {{/has_availability_restriction}}
+        <p class="">{{#str}}clickforavatarinfo, mod_avatar{{/str}}</p>
+    </div>
+    {{#avatars}}
+    <div class="avatar-gallery">
+        {{#avatars}}
+        <div class="avatar-card card avatar-details" data-title="{{{name}}}">
+            <div class="card-header">
+                <a href="{{view_url}}" class="text-decoration-none">
+                    <div class="avatar-image-wrapper">
+                        <img
+                            src="{{previewimage}}"
+                            alt="{{{name}}}"
+                            class="mx-auto d-block"
+                            style="object-fit: cover;"
+                        >
+                    </div>
+                    <h3 class="card-title">{{{name}}}</h3>
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="avatar-progress">
+                    {{#progress_indicators}}
+                    <div class="progress-indicator {{#completed}}bg-success{{/completed}}{{^completed}}bg-secondary{{/completed}} me-1" style="width: 16px; height: 4px;"></div>
+                    {{/progress_indicators}}
+                </div>
+            </div>
+            {{#cmid}}
+            <!-- Display the pick and upgrade for cm based instance only -->
+            <div class="card-footer">
+                {{#isavailable}}
+                                {{#canpick}}
+                <button class="btn btn-primary collect-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                    {{#str}}pick, mod_avatar{{/str}}
+                </button>
+                {{/canpick}}
+
+                                {{#canupgrade}}
+                <button class="btn btn-secondary upgrade-avatar ms-2" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                    {{#str}}upgrade, mod_avatar{{/str}}
+                </button>
+                {{/canupgrade}}
+                            {{/isavailable}}
+
+                            {{^isavailable}}
+                <button
+                    class="btn btn-secondary disabled readonly"
+                    data-avatarid="{{id}}"
+                    data-cmid="{{cmid}}"
+                    disabled
+                >
+                    {{#str}}unavailable, mod_avatar{{/str}}
+                </button>
+                {{/isavailable}}
+            </div>
+            {{/cmid}}
+        </div>
+        {{/avatars}}
+    </div>
+    {{/avatars}}
+    {{/hasavatars}}
+
+    {{^hasavatars}}
+    <div class="avatar-empty-state bg-light p-4 text-center rounded">
+        {{{emptystate}}}
+    </div>
+    {{/hasavatars}}
+
+    {{#footercontent}}
+    <div class="avatar-footer mt-4">
+        {{{footercontent}}}
+    </div>
+    {{/footercontent}}
+</div>
+</div>
+</div>
