@@ -82,6 +82,7 @@ $string['avatarselection'] = 'Avatar selection';
 $string['avatarselection_help'] = 'Choose which avatars to display in this activity.';
 $string['avatarselectionall'] = 'All avatars';
 $string['avatarselectionspecific'] = 'Specific tags';
+$string['avatarsnothingtodisplay'] = 'There aren\'t any avatars created yet. Please create your first avatar to get things going.';
 $string['avatarthumbnail'] = 'Avatar thumbnail';
 $string['avatarupgraded'] = 'Avatar upgraded successfully';
 $string['cannotupgradeavatar'] = 'Cannot upgrade avatar further';

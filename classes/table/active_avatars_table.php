@@ -189,4 +189,18 @@ class active_avatars_table extends \table_sql {
         return html_writer::tag('ul', $html,
             ['data-title' => format_text($values->name, FORMAT_HTML), 'class' => 'avatar-usage-list']);
     }
+
+    /**
+     * Override the message if the table contains no entries.
+     */
+    public function print_nothing_to_display() {
+        global $OUTPUT;
+
+        // Show notification as html element.
+        $notification = new \core\output\notification(
+                get_string('avatarsnothingtodisplay', 'mod_avatar'),
+                    \core\output\notification::NOTIFY_INFO);
+        $notification->set_show_closebutton(false);
+        echo $OUTPUT->render($notification);
+    }
 }

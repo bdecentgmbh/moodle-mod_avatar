@@ -37,6 +37,8 @@ Feature: Managing avatars in the avatar module
       | Tags        | test, avatar            |
     And I upload "mod/avatar/tests/fixtures/test_avatar.png" file to "Preview image" filemanager
     And I click on "Save changes" "button"
+    And I upload "mod/avatar/tests/fixtures/test_avatar.png" file to "Avatar image 1" filemanager
+    And I click on "Save changes" "button"
     Then I should see "Test Avatar" in the "avatars" "table"
     And I should see "Test avatar description" in the "avatars" "table"
 

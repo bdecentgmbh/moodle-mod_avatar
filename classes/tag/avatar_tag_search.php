@@ -153,13 +153,10 @@ class avatar_tag_search {
 
         if ($this->exclusivemode) {
             $query .= " AND NOT EXISTS (
-                         SELECT 1
-                           FROM {tag_instance}
-                          WHERE itemid = a.id
-                            AND tagid != :tagid2
-                            AND itemtype = :itemtype2
-                            AND component = :component2
-                       )";
+                            SELECT 1
+                            FROM {tag_instance}
+                            WHERE itemid = a.id AND tagid != :tagid2 AND itemtype = :itemtype2 AND component = :component2
+                        )";
         }
 
         $params = [

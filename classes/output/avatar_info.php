@@ -436,8 +436,8 @@ class avatar_info implements renderable, templatable {
             case 'courses':
             case 'activities':
 
-                $sql = "SELECT cm.id as cmid, av.* FROM mdl_course_modules cm
-                        JOIN mdl_modules md ON md.name=:modname and md.id = cm.module
+                $sql = "SELECT cm.id as cmid, av.* FROM {course_modules} cm
+                        JOIN {modules} md ON md.name=:modname and md.id = cm.module
                         JOIN {avatar} av ON av.id = cm.instance";
 
                 $cmlist = $DB->get_recordset_sql($sql, ['modname' => 'avatar']);
