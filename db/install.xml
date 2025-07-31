@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/avatar/db" VERSION="20250228" COMMENT="XMLDB file for Moodle mod/avatar"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="avatar" COMMENT="avatar table retrofitted from MySQL">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="course" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="18" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="18" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="intro" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="displaymode" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="headercontent" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="headercontentformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="footercontent" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="footercontentformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="avatarselection" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="specifictags" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="emptystate" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="emptystateformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="completionview" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="completioncollect" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="id" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mdl_avat_cou_ix" UNIQUE="false" FIELDS="course"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="avatar_list" COMMENT="avatar_list table retrofitted from MySQL">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="idnumber" TYPE="char" LENGTH="100" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="descriptionformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="internalnotes" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="secretinfo" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="secretinfoformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="previewimage" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="additionalimages" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="variants" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="variantimages" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="thumbnails" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="animationstates" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="2" NOTNULL="false" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="archived" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timearchived" TYPE="int" LENGTH="18" NOTNULL="false" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="id" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mdl_avatlist_idn_ix" UNIQUE="false" FIELDS="idnumber"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="avatar_user" COMMENT="avatar_user table retrofitted from MySQL">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="avatarid" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="variant" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="18" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="isprimary" TYPE="int" LENGTH="2" NOTNULL="false" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecollected" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="18" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="mdl_avatuser_useava_uix" TYPE="unique" FIELDS="userid, avatarid"/>
+        <KEY NAME="id" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mdl_avatuser_use_ix" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="mdl_avatuser_ava_ix" UNIQUE="false" FIELDS="avatarid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

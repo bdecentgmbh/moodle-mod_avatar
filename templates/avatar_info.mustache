@@ -1,0 +1,128 @@
+<div class="avatar-info">
+    <div class="avatar-block avatar-details" data-title="{{{name}}}">
+        <div class="avatar-info-navigation clearfix">
+            {{#previousavatarurl}}
+            <a class="avatar-prev" href="{{{previousavatarurl}}}" role="button">
+                <i class="fa fa-angle-double-left"></i>{{$str}}previous{{/str}}
+            </a>
+            {{/previousavatarurl}}
+
+            {{#nextavatarurl}}
+            <a class="avatar-next" href="{{{nextavatarurl}}}" role="button">
+                {{$str}}next{{/str}} <i class="fa fa-angle-double-right"></i>
+            </a>
+            {{/nextavatarurl}}
+        </div>
+
+        {{^isavailable}}
+        <div class="alert alert-warning mb-4">
+            <h3>{{#str}}limitedavailability, mod_avatar{{/str}}</h3>
+            <p>{{#str}}unavailability_message,mod_avatar{{/str}}</p>
+        </div>
+        {{/isavailable}}
+
+         {{#fully_upgraded}}
+        <div class="alert alert-success">
+            {{#str}}fully_upgraded, mod_avatar{{/str}}
+        </div>
+        {{/fully_upgraded}}
+
+        <div class="avatar-image">
+            <img src="{{variantimage}}" alt="{{{name}}}" class="img-fluid">
+        </div>
+        <div class="avatar-progress-bar">
+            {{#progress}}
+            <div class="progress-indicator {{#completed}}completed{{/completed}}"></div>
+            {{/progress}}
+        </div>
+        <h2 class="avatar-title">{{{name}}}</h2>
+
+        {{#hasimagetags}}
+        <div class="avatar-image-tags mb-4">
+            {{#imagetags}}
+            <a href="{{url}}" class="avatar-tag-image" title="{{{name}}}">
+                <img src="{{image_url}}" alt="{{{name}}}" class="rounded-circle" width="40" height="40">
+            </a>
+            {{/imagetags}}
+        </div>
+        {{/hasimagetags}}
+
+
+        {{#hastexttags}}
+        <div class="avatar-text-tags">
+            {{#texttags}}
+            <a href="{{url}}" class="badge bg-secondary">#{{{name}}}</a>
+            {{/texttags}}
+        </div>
+        {{/hastexttags}}
+
+        {{#hastags}}
+        <div class="avatar-tags-badge">
+            {{#tags}}
+            <span class="badge bg-secondary">#{{{name}}}</span>
+            {{/tags}}
+        </div>
+        {{/hastags}}
+
+        {{#cmid}} <!-- Display the pick and upgrade for cm based instance only -->
+        <div class="avatar-buttons text-center avatar-actions">
+            {{#isavailable}}
+            {{#canpick}}
+            <button class="btn btn-primary collect-avatar me-3" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                {{#str}}pick, mod_avatar{{/str}}
+            </button>
+            {{/canpick}}
+            {{#canupgrade}}
+            <button class="btn btn-primary upgrade-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                {{#str}}upgrade, mod_avatar{{/str}}
+            </button>
+            {{/canupgrade}}
+            {{/isavailable}}
+            {{^isavailable}}
+            <button class="btn btn-secondary disabled readonly" data-avatarid="{{id}}" data-cmid="{{cmid}}" disabled>
+                {{#str}}unavailable, mod_avatar{{/str}}
+            </button>
+            {{/isavailable}}
+        </div>
+        {{/cmid}}
+    </div>
+
+    {{#viewsecretinfo}}
+        <div class="alert bg-secret">
+            <h5>{{#str}}secretunlocked, mod_avatar{{/str}}</h5>
+            <div class="avatar-secret">{{{secretinfo}}}</div>
+        </div>
+    {{/viewsecretinfo}}
+
+    <div class="avatar-description">
+        {{{description}}}
+    </div>
+
+    {{#hasadditionalmedia}}
+    <div id="avatarMediaCarousel" class="carousel slide" data-wrap="false" data-interval="false" data-ride="carousel">
+        <ol class="carousel-indicators">
+            {{#additional_media}}
+            <li data-target="#avatarMediaCarousel" data-slide-to="{{index}}" {{#active}}class="active"{{/active}}></li>
+            {{/additional_media}}
+        </ol>
+        <div class="carousel-inner rounded">
+            {{#additional_media}}
+            <div class="carousel-item {{#active}}active{{/active}}">
+                <img src="{{url}}" class="d-block w-100" alt="{{alt}}">
+            </div>
+            {{/additional_media}}
+        </div>
+        {{#additional_media.1}}
+        <a class="carousel-control-prev" href="#avatarMediaCarousel" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">{{#str}}previous{{/str}}</span>
+        </a>
+        <a class="carousel-control-next" href="#avatarMediaCarousel" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">{{#str}}next{{/str}}</span>
+        </a>
+        {{/additional_media.1}}
+    </div>
+    {{/hasadditionalmedia}}
+</div>
+

@@ -1,0 +1,29 @@
+<div
+    class="modal fade"
+    id="available-avatars-modal"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="available-avatars-modal-title"
+>
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="available-avatars-modal-title">{{#str}}assignnewavatar, mod_avatar{{/str}}</h5>
+                <button
+                    type="button"
+                    class="close"
+                    data-dismiss="modal"
+                    aria-label="Close"
+                >
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                {{{tablecontent}}}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">{{#str}}cancel{{/str}}</button>
+            </div>
+        </div>
+    </div>
+</div>

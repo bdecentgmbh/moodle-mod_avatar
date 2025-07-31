@@ -1,0 +1,63 @@
+<div class="mod_avatar my-avatars">
+    {{^has_avatars}}
+    <div class="alert alert-info">{{#str}}noavatars, mod_avatar{{/str}}</div>
+    {{/has_avatars}}
+
+    {{#has_avatars}}
+    <h2 class="mb-4 text-align-center">{{#str}}pickyouravatar, mod_avatar{{/str}}</h2>
+    <p class="mb-4">{{#str}}clickforavatarinfo, mod_avatar{{/str}}</p>
+    <div class="avatar-gallery ">
+        {{#avatars}}
+        <div class="gallery-block">
+            <div class="avatar-card card h-100 avatar-details" data-title="{{{name}}}">
+                <div class="card-header">
+                    <a href="{{{view_url}}}" class="text-decoration-none">
+                        <div class="avatar-image-wrapper mb-3">
+                            <img
+                                src="{{previewimage}}"
+                                alt="{{name}}"
+                                class="mx-auto d-block"
+                                style="width: 128px; height: 128px; object-fit: cover;"
+                            >
+                        </div>
+                        <h3 class="card-title h5 text-center mb-3">{{name}}</h3>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="avatar-progress d-flex justify-content-center mb-3">
+                        {{#progress_indicators}}
+                        <div class="progress-indicator {{#completed}}bg-success{{/completed}}{{^completed}}bg-secondary{{/completed}} me-1" style="width: 16px; height: 4px;"></div>
+                        {{/progress_indicators}}
+                    </div>
+                </div>
+                <div class="card-footer avatar-actions">
+                    <div class="d-flex justify-content-center">
+                        {{#cmid}}
+                        <!-- Display the pick and upgrade for cm based instance only -->
+                        {{#canpick}}
+                        <button class="btn btn-primary collect-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                            {{#str}}pick, mod_avatar{{/str}}
+                        </button>
+                        {{/canpick}}
+                                {{#canupgrade}}
+                        <button class="btn btn-secondary upgrade-avatar me-2" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                            {{#str}}upgrade, mod_avatar{{/str}}
+                        </button>
+                        {{/canupgrade}}
+                            {{/cmid}}
+
+                            {{#cansetasprofilepic}}
+                            {{^isprimary}}
+                        <a href="{{{setprofileurl}}}" class="btn btn-primary set-as-profile-pic me-2" data-avatarid="{{id}}">
+                            {{#str}}setasprimary, mod_avatar{{/str}}
+                        </a>
+                        {{/isprimary}}
+                            {{/cansetasprofilepic}}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{/avatars}}
+    </div>
+    {{/has_avatars}}
+</div>
