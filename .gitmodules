@@ -1,0 +1,15 @@
+[submodule "addon/availability"]
+	path = addon/availability
+	url = git@github.com:bdecentgmbh/moodle-avataraddon_availability.git
+[submodule "addon/autoassign"]
+	path = addon/autoassign
+	url = git@github.com:bdecentgmbh/moodle-avataraddon_autoassign.git
+[submodule "addon/importexport"]
+	path = addon/importexport
+	url = git@github.com:bdecentgmbh/moodle-avataraddon_importexport.git
+[submodule "addon/popover"]
+	path = addon/popover
+	url = git@github.com:bdecentgmbh/moodle-avataraddon_popover.git
+[submodule "addon/reports"]
+	path = addon/reports
+	url = git@github.com:bdecentgmbh/moodle-avataraddon_reports.git

@@ -2,3 +2,8 @@
 # Git only records the submodule commit here, never the addon code. Any other directory under
 # addon/ is ignored so addon code can never be committed to this repository by accident.
 /addon/*/
+!/addon/availability/
+!/addon/autoassign/
+!/addon/importexport/
+!/addon/popover/
+!/addon/reports/
