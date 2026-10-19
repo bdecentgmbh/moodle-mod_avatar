@@ -67,6 +67,8 @@ abstract class avatars_table extends \table_sql {
             $this->no_sorting($name);
         }
         $this->collapsible(false);
+        $tabclass = ($this->get_tab() === 'archive' ? 'archived' : 'active') . '-avatars';
+        $this->set_attribute('class', 'generaltable avatars ' . $tabclass);
     }
 
     /**

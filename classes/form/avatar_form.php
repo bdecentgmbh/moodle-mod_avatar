@@ -50,8 +50,10 @@ class avatar_form extends \moodleform {
 
         $mform = $this->_form;
 
-        $mform->addElement('hidden', 'id', $this->_customdata['avatarid'] ?? 0);
+        // The avatar is given by the page, never by the submitted data.
+        $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
+        $mform->setConstants(['id' => (int) ($this->_customdata['avatarid'] ?? 0)]);
 
         // General settings.
         $mform->addElement('header', 'general', get_string('general'));
@@ -137,31 +139,15 @@ class avatar_form extends \moodleform {
         $variants = (int) ($mform->getElementValue('variants')[0] ?? 1);
 
         for ($i = 1; $i <= min($variants, avatar::MAX_VARIANTS); $i++) {
-            $elements = [
-                $mform->createElement(
-                    'filemanager',
-                    "avatarimage{$i}",
-                    get_string('avatarimage', 'mod_avatar') . " {$i}",
-                    null,
-                    avatar::get_filemanager_options("avatarimage{$i}")
-                ),
-                $mform->createElement(
-                    'filemanager',
-                    "avatarthumbnail{$i}",
-                    get_string('avatarthumbnail', 'mod_avatar') . " {$i}",
-                    null,
-                    avatar::get_filemanager_options("avatarthumbnail{$i}")
-                ),
-                $mform->createElement(
-                    'filemanager',
-                    "animationstates{$i}",
-                    get_string('animationstates', 'mod_avatar') . " {$i}",
-                    null,
-                    avatar::get_filemanager_options("animationstates{$i}")
-                ),
+            $fields = [
+                "avatarimage{$i}" => get_string('avatarimage', 'mod_avatar'),
+                "avatarthumbnail{$i}" => get_string('avatarthumbnail', 'mod_avatar'),
+                "animationstates{$i}" => get_string('animationstates', 'mod_avatar'),
             ];
-            foreach ($elements as $element) {
-                $mform->insertElementBefore($element, 'tags');
+            foreach ($fields as $name => $label) {
+                // Added, then moved before the tags (insertElementBefore() needs an element of the form).
+                $mform->addElement('filemanager', $name, "{$label} {$i}", null, avatar::get_filemanager_options($name));
+                $mform->insertElementBefore($mform->removeElement($name, false), 'tags');
             }
             $mform->addRule("avatarimage{$i}", get_string('required'), 'required', null, 'client');
         }
@@ -202,7 +188,7 @@ class avatar_form extends \moodleform {
             $data['idnumber'] !== '' && $DB->record_exists_select(
                 'avatar_list',
                 'idnumber = :idnumber AND id <> :id',
-                ['idnumber' => $data['idnumber'], 'id' => (int) $data['id']]
+                ['idnumber' => $data['idnumber'], 'id' => (int) ($this->_customdata['avatarid'] ?? 0)]
             )
         ) {
             $errors['idnumber'] = get_string('idnumberexists', 'mod_avatar');

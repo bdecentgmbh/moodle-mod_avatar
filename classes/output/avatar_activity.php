@@ -80,12 +80,12 @@ class avatar_activity implements renderable, templatable {
         $messages = array_map(fn($message) => ['message' => $message], $availability->get_messages());
 
         return [
-            'name' => format_string($this->cmavatar->name, true, ['context' => $this->cmcontext]),
+            'name' => format_string($this->cmavatar->name, true, ['context' => $this->cmcontext, 'escape' => false]),
             'headercontent' => $this->format_text_area('headercontent'),
             'footercontent' => $this->format_text_area('footercontent'),
             'emptystate' => $this->format_text_area('emptystate'),
-            'displaymodepage' => ($this->cmavatar->displaymode != AVATAR_DISPLAY_INLINE),
-            'displaymodeinline' => ($this->cmavatar->displaymode == AVATAR_DISPLAY_INLINE),
+            'displaymodepage' => ($this->cmavatar->displaymode != \mod_avatar\activity::DISPLAY_INLINE),
+            'displaymodeinline' => ($this->cmavatar->displaymode == \mod_avatar\activity::DISPLAY_INLINE),
             'avatars' => $avatars,
             'hasavatars' => !empty($avatars),
             'isavailable' => $availability->is_available(),
@@ -146,7 +146,7 @@ class avatar_activity implements renderable, templatable {
 
             $avatars[] = [
                 'id' => $record->id,
-                'name' => format_string($record->name, true, ['context' => \core\context\system::instance()]),
+                'name' => format_string($record->name, true, ['context' => \core\context\system::instance(), 'escape' => false]),
                 'previewimage' => $picked ? $avatar->info->get_thumbnail_image_url() : $avatar->info->get_preview_image(),
                 'progress_indicators' => $progress['indicators'],
                 'canpick' => $canpick && $progress['canpick'],

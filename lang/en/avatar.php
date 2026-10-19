@@ -80,6 +80,7 @@ $string['displaymodepage'] = 'Separate activity page';
 $string['editavatar'] = 'Edit avatar';
 $string['emptystate'] = 'Empty state';
 $string['emptystate_help'] = 'Shown instead of the avatars when the activity offers no avatars.';
+$string['error:deletearchivedonly'] = 'Only archived avatars can be deleted.';
 $string['eventavatarassigned'] = 'Avatar assigned';
 $string['eventavatarchanged'] = 'Avatar changed';
 $string['eventavatarcollected'] = 'Avatar collected';

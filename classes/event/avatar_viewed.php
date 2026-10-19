@@ -65,4 +65,22 @@ class avatar_viewed extends \core\event\base {
     public function get_url() {
         return new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $this->objectid, 'cmid' => $this->contextinstanceid]);
     }
+
+    /**
+     * The avatar is restored as avatar_item (when the backup creates it).
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'avatar_list', 'restore' => 'avatar_item'];
+    }
+
+    /**
+     * The avatar in the other data.
+     *
+     * @return array|false
+     */
+    public static function get_other_mapping() {
+        return false;
+    }
 }

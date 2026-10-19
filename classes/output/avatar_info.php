@@ -113,7 +113,7 @@ class avatar_info implements renderable, templatable {
 
         $data = array_merge([
             'id' => $this->avatar->id,
-            'name' => format_string($this->avatar->name, true, $options),
+            'name' => format_string($this->avatar->name, true, $options + ['escape' => false]),
             'description' => format_text($description, $this->avatar->descriptionformat, $options),
             'variantimage' => $this->useravatar ? $this->get_variant_image_url() : $this->get_preview_image(),
             'current_variant' => !empty($this->useravatar) ? $this->useravatar->variant : 0,
@@ -448,7 +448,7 @@ class avatar_info implements renderable, templatable {
      * Get the previous avatar URL.
      *
      * @param array $avatars The list of avatars
-     * @return moodle_url|null The URL of the previous avatar or null if not found
+     * @return string|null The URL of the previous avatar or null if not found
      */
     public function get_previous_avatar_url(array $avatars) {
 
@@ -458,7 +458,8 @@ class avatar_info implements renderable, templatable {
 
         $previousavatar = isset($avatars[$position - 1]) ? $avatars[$position - 1] : null;
         if ($previousavatar) {
-            return new moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $previousavatar->id, 'cmid' => $this->cmid]);
+            return (new moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $previousavatar->id,
+                'cmid' => $this->cmid]))->out(false);
         }
 
         return null;
@@ -468,7 +469,7 @@ class avatar_info implements renderable, templatable {
      * Get the next avatar URL.
      *
      * @param array $avatars The list of avatars
-     * @return moodle_url|null The URL of the next avatar or null if not found
+     * @return string|null The URL of the next avatar or null if not found
      */
     public function get_next_avatar_url(array $avatars) {
 
@@ -478,7 +479,8 @@ class avatar_info implements renderable, templatable {
 
         $nextavatar = isset($avatars[$position + 1]) ? $avatars[$position + 1] : null;
         if ($nextavatar) {
-            return new moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $nextavatar->id, 'cmid' => $this->cmid]);
+            return (new moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $nextavatar->id,
+                'cmid' => $this->cmid]))->out(false);
         }
 
         return null;

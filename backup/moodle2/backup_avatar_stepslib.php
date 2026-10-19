@@ -83,21 +83,22 @@ class backup_avatar_activity_structure_step extends backup_activity_structure_st
             ['cmid' => $this->task->get_moduleid()]
         ));
         $avatarids = array_values(array_unique(array_map('intval', $avatarids))) ?: [0];
-        $idlist = implode(',', $avatarids);
+        [$insql, $inparams] = $DB->get_in_or_equal($avatarids, SQL_PARAMS_QM);
+        $inparams = array_map([backup_helper::class, 'is_sqlparam'], $inparams);
 
         if ($withlibrary) {
-            $avataritem->set_source_sql("SELECT * FROM {avatar_list} WHERE id IN ($idlist)", []);
+            $avataritem->set_source_sql("SELECT * FROM {avatar_list} WHERE id $insql", $inparams);
         } else {
             $avataritem->set_source_sql("SELECT id, name, idnumber, variants, status, archived, timecreated, timemodified
-                                           FROM {avatar_list} WHERE id IN ($idlist)", []);
+                                           FROM {avatar_list} WHERE id $insql", $inparams);
         }
 
         $avatartag->set_source_sql(
             "SELECT ti.id AS ti_id, ti.itemid AS ti_itemid, t.name AS t_name, t.rawname AS t_rawname
                FROM {tag_instance} ti
                JOIN {tag} t ON t.id = ti.tagid
-              WHERE ti.component = 'mod_avatar' AND ti.itemtype = 'avatar' AND ti.itemid IN ($idlist)",
-            []
+              WHERE ti.component = ? AND ti.itemtype = ? AND ti.itemid $insql",
+            array_merge([backup_helper::is_sqlparam('mod_avatar'), backup_helper::is_sqlparam('avatar')], $inparams)
         );
 
         if ($userinfo) {

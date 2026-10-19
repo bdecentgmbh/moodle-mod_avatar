@@ -138,15 +138,20 @@ class collection {
             'timemodified' => $now,
         ];
         $transaction = $DB->start_delegated_transaction();
-        $record->id = $DB->insert_record('avatar_user', $record);
-        $DB->set_field_select(
-            'avatar_user',
-            'isprimary',
-            0,
-            'userid = :userid AND id <> :id',
-            ['userid' => $userid, 'id' => $record->id]
-        );
-        $transaction->allow_commit();
+        try {
+            $record->id = $DB->insert_record('avatar_user', $record);
+            $DB->set_field_select(
+                'avatar_user',
+                'isprimary',
+                0,
+                'userid = :userid AND id <> :id',
+                ['userid' => $userid, 'id' => $record->id]
+            );
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            // For example a concurrent collection of the same avatar (unique key).
+            $transaction->rollback($e);
+        }
 
         $params = [
             'context' => $cm ? $cm->context : context\system::instance(),
@@ -166,7 +171,7 @@ class collection {
      *
      * @param \stdClass $avatar The avatar (record of avatar_list).
      * @param int $userid The user.
-     * @param \cm_info|null $cm The activity in which it is upgraded, null outside of activities.
+     * @param \cm_info|null $cm The activity in which it is upgraded (for the events), null outside of activities.
      * @return \stdClass The updated record of avatar_user.
      * @throws \moodle_exception When the user does not own the avatar or owns its last variant.
      */
@@ -181,22 +186,24 @@ class collection {
             throw new \moodle_exception('alreadyfullyupgraded', 'mod_avatar');
         }
 
+        // The avatar stays linked to the activity it was collected in (collection limits, completion).
         $record->variant++;
         $record->isprimary = 1;
         $record->timemodified = time();
-        if ($cm) {
-            $record->cmid = $cm->id;
-        }
         $transaction = $DB->start_delegated_transaction();
-        $DB->update_record('avatar_user', $record);
-        $DB->set_field_select(
-            'avatar_user',
-            'isprimary',
-            0,
-            'userid = :userid AND id <> :id',
-            ['userid' => $userid, 'id' => $record->id]
-        );
-        $transaction->allow_commit();
+        try {
+            $DB->update_record('avatar_user', $record);
+            $DB->set_field_select(
+                'avatar_user',
+                'isprimary',
+                0,
+                'userid = :userid AND id <> :id',
+                ['userid' => $userid, 'id' => $record->id]
+            );
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
 
         $context = $cm ? $cm->context : context\system::instance();
         avatar_upgraded::create([
@@ -234,9 +241,13 @@ class collection {
             throw new \moodle_exception('avatarnotcollected', 'mod_avatar');
         }
         $transaction = $DB->start_delegated_transaction();
-        $DB->set_field('avatar_user', 'isprimary', 0, ['userid' => $userid]);
-        $DB->set_field('avatar_user', 'isprimary', 1, ['id' => $record->id]);
-        $transaction->allow_commit();
+        try {
+            $DB->set_field('avatar_user', 'isprimary', 0, ['userid' => $userid]);
+            $DB->set_field('avatar_user', 'isprimary', 1, ['id' => $record->id]);
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
 
         if (get_config('mod_avatar', 'profileimagesync')) {
             util::update_user_profile_picture($userid, $avatarid, $record->variant);

@@ -89,7 +89,7 @@ class renderer extends plugin_renderer_base {
 
             $avatars[] = [
                 'id' => $record->id,
-                'name' => format_string($record->name, true, ['context' => $context]),
+                'name' => format_string($record->name, true, ['context' => $context, 'escape' => false]),
                 'previewimage' => $avatar->info->get_thumbnail_image_url(),
                 'variant' => $record->uservariant,
                 'max_variant' => $record->variants,

@@ -78,4 +78,22 @@ class avatar_created extends \core\event\base {
             throw new \coding_exception('Context level must be CONTEXT_SYSTEM.');
         }
     }
+
+    /**
+     * The avatar is restored as avatar_item (when the backup creates it).
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'avatar_list', 'restore' => 'avatar_item'];
+    }
+
+    /**
+     * The avatar in the other data.
+     *
+     * @return array|false
+     */
+    public static function get_other_mapping() {
+        return false;
+    }
 }

@@ -137,7 +137,7 @@ class avatar_tag_search {
             );
             $avatars[] = [
                 'id' => $record->id,
-                'name' => format_string($record->name, true, ['context' => $context]),
+                'name' => format_string($record->name, true, ['context' => $context, 'escape' => false]),
                 'description' => format_text($description, $record->descriptionformat, ['context' => $context]),
                 'viewurl' => (new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $record->id]))->out(false),
             ];

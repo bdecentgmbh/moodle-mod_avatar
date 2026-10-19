@@ -26,6 +26,12 @@ namespace mod_avatar;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class activity {
+    /** @var int Display mode: the avatars are shown on the page of the activity. */
+    public const DISPLAY_PAGE = 0;
+
+    /** @var int Display mode: the avatars are shown on the course page. */
+    public const DISPLAY_INLINE = 1;
+
     /**
      * The tag names an activity is limited to.
      *

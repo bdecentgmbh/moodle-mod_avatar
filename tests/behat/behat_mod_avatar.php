@@ -357,14 +357,6 @@ class behat_mod_avatar extends behat_base {
      * @Given /^I view my avatars$/
      */
     public function i_view_my_avatars() {
-        global $CFG;
-
-        if ($CFG->branch <= 404) {
-            $this->execute('behat_navigation::i_follow_in_the_user_menu', ['Profile']);
-            $this->execute('behat_general::i_click_on_in_the', ['My avatars', "link", "#page-content", 'css_element']);
-            return;
-        }
-
         $this->execute('behat_navigation::i_follow_in_the_user_menu', ['My avatars']);
     }
 

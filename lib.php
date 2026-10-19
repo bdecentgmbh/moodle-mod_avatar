@@ -27,12 +27,6 @@ use mod_avatar\hook\after_instance_saved;
 use mod_avatar\hook\before_instance_deleted;
 use mod_avatar\hook\extend_activity_navigation;
 
-/** Display mode: the avatars are shown on the page of the activity. */
-define('AVATAR_DISPLAY_PAGE', 0);
-
-/** Display mode: the avatars are shown on the course page. */
-define('AVATAR_DISPLAY_INLINE', 1);
-
 /**
  * Returns the information on whether the module supports a feature.
  *
@@ -269,11 +263,15 @@ function avatar_get_editor_options(?\core\context $context = null) {
  * @param int $ctx Context id where to search for records
  * @param bool $rec Search in subcontexts?
  * @param int $page Page number
- * @return \core_tag\output\tagindex
+ * @return \core_tag\output\tagindex|null Nothing for users who may not see avatars.
  */
 function mod_avatar_get_tagged_avatars($tag, $exclusivemode = false, $fromctx = 0, $ctx = 0, $rec = true, $page = 0) {
     global $OUTPUT;
     $perpage = 20;
+
+    if (!has_capability('mod/avatar:view', \core\context\system::instance())) {
+        return null;
+    }
 
     $avatarlist = new \mod_avatar\tag\avatar_tag_search($tag, $exclusivemode, $fromctx, $ctx, $rec, $page, $perpage);
     $content = $OUTPUT->render_from_template('mod_avatar/tagindex', $avatarlist->get_content());
@@ -330,7 +328,8 @@ function avatar_get_coursemodule_info($coursemodule) {
 function mod_avatar_cm_info_view(cm_info $cm) {
     global $DB, $PAGE;
 
-    if (($cm->customdata['displaymode'] ?? AVATAR_DISPLAY_PAGE) != AVATAR_DISPLAY_INLINE || !$cm->uservisible) {
+    $displaymode = $cm->customdata['displaymode'] ?? \mod_avatar\activity::DISPLAY_PAGE;
+    if ($displaymode != \mod_avatar\activity::DISPLAY_INLINE || !$cm->uservisible) {
         return;
     }
     if (!has_capability('mod/avatar:view', $cm->context)) {
@@ -376,8 +375,13 @@ function avatar_view($avatar, $course, $cm, $context) {
  * @return string HTML of the usage table.
  */
 function mod_avatar_output_fragment_avatar_usage($args) {
+    global $PAGE;
+
     $context = \core\context\system::instance();
     require_capability('mod/avatar:overview', $context);
+    if (!$PAGE->has_set_url()) {
+        $PAGE->set_url(new \moodle_url('/mod/avatar/manage.php'));
+    }
 
     $avatarid = clean_param($args['avatarid'] ?? 0, PARAM_INT);
     $type = clean_param($args['type'] ?? '', PARAM_ALPHA);

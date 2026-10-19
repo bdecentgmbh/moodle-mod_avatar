@@ -24,8 +24,6 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-require_once($CFG->dirroot . '/mod/avatar/lib.php');
-
 $ADMIN->add('modsettings', new admin_category('modavatar', new lang_string('pluginname', 'mod_avatar')));
 $settings = new admin_settingpage('modsettingavatar', get_string('generalsettings', 'mod_avatar'), 'moodle/site:config', false);
 
@@ -38,17 +36,16 @@ if ($ADMIN->fulltree) {
         0
     ));
 
-    // Display mode page.
+    // Default display mode of new activities.
     $settings->add(new admin_setting_configselect(
         'mod_avatar/displaymode',
         get_string('displaymode', 'mod_avatar'),
         get_string('displaymode_desc', 'mod_avatar'),
-        AVATAR_DISPLAY_PAGE,
-        [AVATAR_DISPLAY_PAGE => get_string('displaymodepage', 'mod_avatar'),
-        AVATAR_DISPLAY_INLINE => get_string(
-            'displaymodeinline',
-            'mod_avatar'
-        )]
+        \mod_avatar\activity::DISPLAY_PAGE,
+        [
+            \mod_avatar\activity::DISPLAY_PAGE => get_string('displaymodepage', 'mod_avatar'),
+            \mod_avatar\activity::DISPLAY_INLINE => get_string('displaymodeinline', 'mod_avatar'),
+        ]
     ));
 
     // Add tag images filemanager.

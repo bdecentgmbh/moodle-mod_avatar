@@ -66,6 +66,9 @@ if (in_array($action, ['togglestatus', 'archive', 'restore', 'delete'])) {
             break;
         case 'delete':
             require_capability('mod/avatar:delete', $context);
+            if (!$avatar->archived) {
+                throw new moodle_exception('error:deletearchivedonly', 'mod_avatar');
+            }
             $avatar->delete();
             redirect(new moodle_url($manageurl, ['tab' => 'archive']), get_string('avatardeleted', 'mod_avatar'));
             break;
@@ -98,10 +101,12 @@ $mform = new \mod_avatar\form\avatar_form($url, [
 if ($mform->is_cancelled()) {
     redirect($manageurl);
 } else if ($data = $mform->get_data()) {
-    if (empty($data->id)) {
-        $avatar = avatar_manager::get_avatar(avatar_manager::create_avatar($data));
-    } else {
+    if ($avatar) {
+        $data->id = $avatar->id;
         $avatar->update($data);
+    } else {
+        unset($data->id);
+        $avatar = avatar_manager::get_avatar(avatar_manager::create_avatar($data));
     }
     $avatar->save_form_files($data);
     redirect($manageurl, get_string('avatarsaved', 'mod_avatar'));

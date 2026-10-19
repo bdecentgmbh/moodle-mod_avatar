@@ -47,7 +47,8 @@ Feature: Using the avatar activity in a course
     Then I click on "Collect Avatars" "link" in the ".activityname" "css_element"
     And I should see "Pick your avatar" in the ".mod_avatar.display-page " "css_element"
     And I should see "Cool Avatar" in the " .mod_avatar .avatar-gallery" "css_element"
-    And I should see "Pick" in the ".mod_avatar .avatar-gallery" "css_element"
+    # Teachers cannot collect avatars, so they see no Pick buttons.
+    And "Pick" "button" should not exist in the ".mod_avatar .avatar-gallery" "css_element"
 
   @javascript
   Scenario: Student collects an avatar

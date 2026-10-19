@@ -66,7 +66,11 @@ class avatar_assigned extends \core\event\base {
      * @return \moodle_url
      */
     public function get_url() {
-        return new \moodle_url('/mod/avatar/myavatars.php', ['userid' => $this->relateduserid]);
+        $params = ['avatarid' => $this->objectid];
+        if ($this->contextlevel == CONTEXT_MODULE) {
+            $params['cmid'] = $this->contextinstanceid;
+        }
+        return new \moodle_url('/mod/avatar/view_avatar.php', $params);
     }
 
     /**
@@ -83,5 +87,23 @@ class avatar_assigned extends \core\event\base {
         if (!isset($this->relateduserid)) {
             throw new \coding_exception('The \'relateduserid\' must be set.');
         }
+    }
+
+    /**
+     * The avatar is restored as avatar_item (when the backup creates it).
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'avatar_list', 'restore' => 'avatar_item'];
+    }
+
+    /**
+     * The avatar in the other data.
+     *
+     * @return array|false
+     */
+    public static function get_other_mapping() {
+        return ['avatarid' => ['db' => 'avatar_list', 'restore' => 'avatar_item']];
     }
 }
