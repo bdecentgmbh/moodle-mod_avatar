@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The mod_avatar avatar changed event class.
  */
 class avatar_changed extends \core\event\base {
-
     /**
      * Init method.
      *
@@ -36,8 +35,8 @@ class avatar_changed extends \core\event\base {
      */
     protected function init() {
         $this->data['crud'] = 'u';
-        $this->data['edulevel'] = self::LEVEL_PARTICIPATING;
-        $this->data['objecttable'] = 'avatar_user';
+        $this->data['edulevel'] = self::LEVEL_TEACHING;
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**

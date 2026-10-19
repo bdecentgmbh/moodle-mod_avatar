@@ -319,273 +319,6 @@ table img.avatar-preview-image {
     }
 }
 
-/* Navbar avatar styles */
-.navbar-expand .navbar-nav .avatar-popover {
-    order: -1;
-}
-.navbar-avatar {
-    margin-right: 10px;
-    display: inline-block;
-    position: relative;
-}
-.avatar-wrapper {
-    cursor: pointer;
-}
-.avatar-navbar {
-    width: 35px;
-    height: 35px;
-    object-fit: cover;
-}
-.avatar-popover-content {
-    min-width: 250px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: .25rem;
-    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, 0.175);
-    background-color: #fff;
-    padding: 10px;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    z-index: 1000;
-}
-.avatar-popover .avatar-list {
-    height: 100%;
-    &:has(.primary-avatar):hover > .avatar-item {
-        margin-left: -15px;
-        display: flex;
-        &:hover {
-            margin-left: 0;
-        }
-    }
-    .avatar-item {
-        height: 100%;
-        transition: all .5s ease;
-        &:not(.primary-avatar) {
-            display: none;
-        }
-        &.primary-avatar {
-            order: 1;
-        }
-        &:hover {
-            transform: scale(1.2);
-            cursor: pointer;
-        }
-        a {
-            height: 100%;
-            display: inline-flex;
-            align-items: center;
-        }
-        img {
-            border: 1px solid #ccc;
-            background: #f4f4f4;
-            box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
-            overflow-clip-margin: unset;
-        }
-        + .avatar-item {
-            margin-left: -25px;
-        }
-    }
-}
-.avatar-thumbnail {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-}
-
-/* Popover region */
-.mod-avatar-popover-region {
-    float: right;
-    position: relative;
-    margin: 0 0.5rem;
-    .popover-region-toggle {
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-    .popover-region-container {
-        max-height: 620px;
-        width: 300px;
-        height: auto;
-        border: 1px solid rgba(0, 0, 0, 0.15);
-        border-radius: 0.25rem;
-        background-color: #fff;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
-        position: absolute;
-        top: 100%;
-        right: 0;
-        z-index: 1000;
-        visibility: hidden;
-        opacity: 0;
-        transition: visibility 0.2s, opacity 0.2s;
-    }
-    &.show .popover-region-container {
-        visibility: visible;
-        opacity: 1;
-    }
-    .popover-region-header-container {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    }
-    .popover-region-header-text {
-        font-size: 1rem;
-        font-weight: bold;
-        margin: 0;
-    }
-    .popover-region-content-container {
-        overflow-y: auto;
-        max-height: 500px;
-    }
-    .popover-region-content {
-        padding: 0.75rem 1rem;
-    }
-    .avatar-navbar {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .mod-avatar-popover-region .popover-region-container {
-        width: 280px;
-        right: -70px;
-    }
-    .mod-avatar-popover-region .popover-region-container:before,
-    .mod-avatar-popover-region .popover-region-container:after {
-        right: 85px;
-    }
-}
-
-.avatar-report-table {
-    width: 100%;
-    margin-bottom: 2rem;
-}
-
-.avatar-report-table .avatar-preview {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-    border-radius: 50%;
-    display: block;
-    margin: 0 auto;
-}
-
-.avatar-report-table .avatar-name {
-    font-size: 0.875rem;
-    text-align: center;
-    margin-top: 0.5rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.avatar-report-table .avatar-progress {
-    margin-bottom: 0.5rem;
-    display: flex;
-    justify-content: center;
-    gap: 2px;
-}
-
-.avatar-report-table .progress-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.avatar-report-table .progress-indicator.bg-success {
-    background-color: #22c55e;
-}
-
-.avatar-report-table .progress-indicator.bg-secondary {
-    background-color: #e5e7eb;
-}
-
-.avatar-report-table td {
-    text-align: center;
-    vertical-align: middle;
-}
-
-.avatar-report-table th {
-    min-width: 120px;
-    text-align: center;
-}
-
-.avatar-report-table th:first-child,
-.avatar-report-table td:first-child {
-    text-align: left;
-}
-
-.avatar-report-table .btn {
-    white-space: nowrap;
-}
-
-/* Responsive styles */
-@media (max-width: 768px) {
-    .avatar-report-table {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
-/* Available avatars modal styles */
-.available-avatars-table .avatar-preview-image {
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.available-avatars-table .assign-avatar-btn {
-    min-width: 80px;
-}
-
-/* Modal styles */
-#available-avatars-modal .modal-body {
-    max-height: calc(100vh - 210px);
-    overflow-y: auto;
-}
-
-#available-avatars-modal .table {
-    margin-bottom: 0;
-}
-
-#available-avatars-modal .avatar-preview-cell {
-    width: 60px;
-}
-
-#available-avatars-modal .actions-cell {
-    width: 100px;
-    text-align: center;
-}
-
-@media (max-width: 768px) {
-    #available-avatars-modal .modal-dialog {
-        width: auto;
-        margin: 10px;
-    }
-
-    #available-avatars-modal .table {
-        font-size: 14px;
-    }
-
-    #available-avatars-modal .avatar-preview-image {
-        width: 40px;
-        height: 40px;
-    }
-}
-
-/* Hide the admin settings alert on config setinitialavatar and userprofilefield without capabilities */
-#page-admin-setting-modsettingavatar {
-    #admin-setinitialavatar .alert.alert-info,
-    #admin-userprofilefield .alert.alert-info {
-        display: none;
-    }
-}
 #page-admin-mod-avatar-manage ul.avatar-usage-list {
     span.usage-item {
         width: max-content;
@@ -611,4 +344,33 @@ table img.avatar-preview-image {
             margin-left: 2px;
         }
     }
+}
+
+/* Spacing without Bootstrap 5 only utilities (gap-*), so that it looks the same on Moodle 4.5 and 5.x. */
+.mod_avatar .avatar-actions,
+.avatar-info .avatar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.mod_avatar .avatar-cover {
+    object-fit: cover;
+}
+.mod_avatar .avatar-progress {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+}
+.mod_avatar .avatar-progress .progress-indicator {
+    width: 16px;
+    height: 4px;
+}
+.mod_avatar .avatar-collection-image {
+    width: 128px;
+    height: 128px;
+    object-fit: cover;
+}
+.avatar-info .avatar-media-carousel {
+    margin-top: 1rem;
 }

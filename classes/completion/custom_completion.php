@@ -30,7 +30,6 @@ use core_completion\activity_custom_completion;
  * Custom completion rules for mod_avatar.
  */
 class custom_completion extends activity_custom_completion {
-
     /**
      * Fetches the completion state for a given completion rule.
      *
@@ -43,9 +42,7 @@ class custom_completion extends activity_custom_completion {
         $this->validate_rule($rule);
 
         switch ($rule) {
-
             case 'completioncollect':
-
                 $collected = $DB->record_exists('avatar_user', [
                     'userid' => $this->userid,
                     'cmid' => $this->cm->id,

@@ -34,7 +34,6 @@ function xmldb_avatar_upgrade($oldversion) {
     $dbman = $DB->get_manager();
 
     if ($oldversion < 2025041300) {
-
         // Define table avatar to add fields.
         $protable = new xmldb_table('avataraddon_pro_avatar');
 
@@ -44,7 +43,7 @@ function xmldb_avatar_upgrade($oldversion) {
 
         if ($dbman->table_exists($protable)) {
             $field = new xmldb_field('coursecategories');
-            if ($dbman->field_exists($table,  $field)) {
+            if ($dbman->field_exists($table, $field)) {
                 $sql = "SELECT al.*
                         FROM {avatar_list} al
                         WHERE al.id NOT IN (SELECT avatarid FROM {avataraddon_pro_avatar})";
@@ -77,7 +76,7 @@ function xmldb_avatar_upgrade($oldversion) {
 
         if ($dbman->table_exists($protable)) {
             $field = new xmldb_field('collectiontotallimit');
-            if ($dbman->field_exists($table,  $field)) {
+            if ($dbman->field_exists($table, $field)) {
                 $sql = "SELECT al.*
                         FROM {avatar} al
                         WHERE al.id NOT IN (SELECT cmavatarid FROM {avataraddon_pro})";
@@ -102,6 +101,46 @@ function xmldb_avatar_upgrade($oldversion) {
         }
         // Upgrade savepoint reached.
         upgrade_mod_savepoint(true, 2025041300, 'avatar');
+    }
+
+    if ($oldversion < 2026102000) {
+        // The texts of an activity keep their files with the instance id as item id (the free version used 0).
+        $fs = get_file_storage();
+        $sql = "SELECT DISTINCT f.contextid, f.filearea, cm.instance
+                  FROM {files} f
+                  JOIN {context} ctx ON ctx.id = f.contextid AND ctx.contextlevel = :contextlevel
+                  JOIN {course_modules} cm ON cm.id = ctx.instanceid
+                  JOIN {modules} m ON m.id = cm.module AND m.name = :modname
+                 WHERE f.component = :component AND f.itemid = 0
+                       AND f.filearea IN ('headercontent', 'footercontent', 'emptystate')";
+        $areas = $DB->get_recordset_sql($sql, ['contextlevel' => CONTEXT_MODULE, 'modname' => 'avatar',
+            'component' => 'mod_avatar']);
+        foreach ($areas as $area) {
+            foreach ($fs->get_area_files($area->contextid, 'mod_avatar', $area->filearea, 0, 'id', false) as $file) {
+                if (
+                    !$fs->file_exists(
+                        $area->contextid,
+                        'mod_avatar',
+                        $area->filearea,
+                        $area->instance,
+                        $file->get_filepath(),
+                        $file->get_filename()
+                    )
+                ) {
+                    $fs->create_file_from_storedfile(['itemid' => $area->instance], $file);
+                }
+            }
+            $fs->delete_area_files($area->contextid, 'mod_avatar', $area->filearea, 0);
+        }
+        $areas->close();
+
+        // Collected avatars of deleted activities are no longer linked to an activity.
+        $DB->execute("UPDATE {avatar_user}
+                         SET cmid = 0
+                       WHERE cmid IS NULL
+                          OR (cmid > 0 AND NOT EXISTS (SELECT 1 FROM {course_modules} cm WHERE cm.id = {avatar_user}.cmid))");
+
+        upgrade_mod_savepoint(true, 2026102000, 'avatar');
     }
 
     return true;

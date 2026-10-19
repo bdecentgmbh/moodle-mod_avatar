@@ -1,4 +1,60 @@
-<div class="mod_avatar {{#displaymodepage}}display-page{{/displaymodepage}}{{#displaymodeinline}}display-inline{{/displaymodeinline}} {{#inline_display}}mod-avatar-inline{{/inline_display}}">
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_avatar/avatar_activity
+
+    The avatars of an avatar activity, on the activity page or inline on the course page.
+
+    Context variables required for this template:
+    * displaymodepage - Shown on the activity page
+    * displaymodeinline - Shown on the course page
+    * headercontent, footercontent, emptystate - Formatted HTML of the activity texts
+    * hasavatars - Whether the activity offers avatars
+    * isavailable - Whether the user may collect avatars in the activity
+    * has_availability_restriction - Whether to show the availability box
+    * availabilitymessages - Messages of the addons
+    * avatars - The avatars, with id, name (escaped), previewimage, view_url, cmid, canpick, canupgrade,
+      isavailable and progress_indicators
+
+    Example context (json):
+    {
+        "displaymodepage": true,
+        "headercontent": "<p>Pick an avatar that suits you.</p>",
+        "hasavatars": true,
+        "isavailable": true,
+        "has_availability_restriction": true,
+        "availabilitymessages": [{"message": "You can collect 2 more avatars in this activity."}],
+        "avatars": [
+            {
+                "id": 1,
+                "name": "Fiona",
+                "previewimage": "https://example.com/fiona.png",
+                "view_url": "https://example.com/mod/avatar/view_avatar.php?avatarid=1&cmid=2",
+                "cmid": 2,
+                "canpick": true,
+                "isavailable": true,
+                "progress_indicators": [{"completed": false}, {"completed": false}]
+            }
+        ],
+        "emptystate": "",
+        "footercontent": ""
+    }
+}}
+<div class="mod_avatar{{#displaymodepage}} display-page{{/displaymodepage}}{{#displaymodeinline}} display-inline{{/displaymodeinline}}">
     {{#headercontent}}
     <div class="avatar-header mb-4">
         {{{headercontent}}}
@@ -9,81 +65,71 @@
     <div class="avatar-title-container">
         <h2 class="avatar-title">{{#str}}pickyouravatar, mod_avatar{{/str}}</h2>
         {{#has_availability_restriction}}
-        <div class="alert alert-warning" role="alert">
-            <h3>{{#str}}limitedavailability, mod_avatar{{/str}}</h3>
-            {{#isavailable}}
-            <p>{{availability_message}}</p>
-            {{/isavailable}}
-                    {{^isavailable}}
-            <p>{{#str}}limitreached, mod_avatar{{/str}}</p>
+        <div class="alert alert-warning" role="status">
+            <h3 class="h5">{{#str}}limitedavailability, mod_avatar{{/str}}</h3>
+            {{#availabilitymessages}}
+            <p class="mb-1">{{message}}</p>
+            {{/availabilitymessages}}
+            {{^isavailable}}
+            <p class="mb-0">{{#str}}limitreached, mod_avatar{{/str}}</p>
             {{/isavailable}}
         </div>
         {{/has_availability_restriction}}
-        <p class="">{{#str}}clickforavatarinfo, mod_avatar{{/str}}</p>
+        <p>{{#str}}clickforavatarinfo, mod_avatar{{/str}}</p>
     </div>
-    {{#avatars}}
     <div class="avatar-gallery">
         {{#avatars}}
-        <div class="avatar-card card avatar-details" data-title="{{{name}}}">
+        <div class="avatar-card card avatar-details" data-title="{{name}}">
             <div class="card-header">
                 <a href="{{view_url}}" class="text-decoration-none">
                     <div class="avatar-image-wrapper">
-                        <img
-                            src="{{previewimage}}"
-                            alt="{{{name}}}"
-                            class="mx-auto d-block"
-                            style="object-fit: cover;"
-                        >
+                        <img src="{{previewimage}}" alt="{{name}}" class="mx-auto d-block avatar-cover">
                     </div>
-                    <h3 class="card-title">{{{name}}}</h3>
+                    <h3 class="card-title">{{name}}</h3>
                 </a>
             </div>
             <div class="card-body">
-                <div class="avatar-progress">
+                <div class="avatar-progress" aria-hidden="true">
                     {{#progress_indicators}}
-                    <div class="progress-indicator {{#completed}}bg-success{{/completed}}{{^completed}}bg-secondary{{/completed}} me-1" style="width: 16px; height: 4px;"></div>
+                    <div class="progress-indicator {{#completed}}bg-success{{/completed}}{{^completed}}bg-secondary{{/completed}}"></div>
                     {{/progress_indicators}}
                 </div>
             </div>
-            {{#cmid}}
-            <!-- Display the pick and upgrade for cm based instance only -->
-            <div class="card-footer">
+            <div class="card-footer avatar-actions">
                 {{#isavailable}}
-                        {{#canpick}}
-                <button class="btn btn-primary collect-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                {{#canpick}}
+                <button type="button" class="btn btn-primary collect-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
                     {{#str}}pick, mod_avatar{{/str}}
                 </button>
                 {{/canpick}}
-
-                        {{#canupgrade}}
-                <button class="btn btn-secondary upgrade-avatar ms-2" data-avatarid="{{id}}" data-cmid="{{cmid}}">
+                {{#canupgrade}}
+                <button type="button" class="btn btn-secondary upgrade-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
                     {{#str}}upgrade, mod_avatar{{/str}}
                 </button>
                 {{/canupgrade}}
-                        {{/isavailable}}
-
-                        {{^isavailable}}
-                <button
-                    class="btn btn-secondary disabled readonly"
-                    data-avatarid="{{id}}"
-                    data-cmid="{{cmid}}"
-                    disabled
-                >
+                {{/isavailable}}
+                {{^isavailable}}
+                <button type="button" class="btn btn-secondary" disabled>
                     {{#str}}unavailable, mod_avatar{{/str}}
                 </button>
                 {{/isavailable}}
             </div>
-            {{/cmid}}
         </div>
         {{/avatars}}
     </div>
-    {{/avatars}}
     {{/hasavatars}}
 
     {{^hasavatars}}
+    {{#emptystate}}
     <div class="avatar-empty-state bg-light p-4 text-center rounded">
         {{{emptystate}}}
     </div>
+    {{/emptystate}}
+    {{^emptystate}}
+    <div class="avatar-empty-state bg-light p-4 text-center rounded">
+        {{#str}}noavatarsfound, mod_avatar{{/str}}
+    </div>
+    {{/emptystate}}
     {{/hasavatars}}
 
     {{#footercontent}}
@@ -91,6 +137,4 @@
         {{{footercontent}}}
     </div>
     {{/footercontent}}
-</div>
-</div>
 </div>

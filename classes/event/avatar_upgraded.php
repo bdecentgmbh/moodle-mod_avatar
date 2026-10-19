@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The avatar upgraded event class.
  */
 class avatar_upgraded extends \core\event\base {
-
     /**
      * Init method.
      *
@@ -37,7 +36,7 @@ class avatar_upgraded extends \core\event\base {
     protected function init() {
         $this->data['crud'] = 'u';
         $this->data['edulevel'] = self::LEVEL_PARTICIPATING;
-        $this->data['objecttable'] = 'avatar_user';
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**
@@ -76,8 +75,8 @@ class avatar_upgraded extends \core\event\base {
      */
     protected function validate_data() {
         parent::validate_data();
-        if ($this->contextlevel != CONTEXT_MODULE && $this->contextlevel != CONTEXT_USER) {
-            throw new \coding_exception('Context level must be CONTEXT_MODULE.');
+        if (!in_array($this->contextlevel, [CONTEXT_MODULE, CONTEXT_USER, CONTEXT_SYSTEM])) {
+            throw new \coding_exception('Context level must be CONTEXT_MODULE, CONTEXT_USER or CONTEXT_SYSTEM.');
         }
         if (!isset($this->other['variant'])) {
             throw new \coding_exception('The \'variant\' value must be set in other.');

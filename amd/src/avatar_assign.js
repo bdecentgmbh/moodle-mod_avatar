@@ -1,173 +1,72 @@
-define([
-    "jquery",
-    "core/modal_factory",
-    "core/modal_events",
-    "core/fragment",
-    "core/ajax",
-    "core/notification",
-    "core/str",
-], ($, ModalFactory, ModalEvents, Fragment, Ajax, Notification, Str) => {
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-    var SELECTORS = {
-        ASSIGN_AVATAR_BTN: '.avatar-assign-btn',
-        UPGRADE_AVATAR_BTN: 'table#avatar_report td a.avatar-upgrade-btn',
-    };
+/**
+ * Pick (collect) and upgrade avatars: the buttons of the activity, the avatar page and My avatars.
+ *
+ * @module     mod_avatar/avatar_assign
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
+import Ajax from 'core/ajax';
+import Notification from 'core/notification';
 
-    /**
-     * Initialize the modal
-     *
-     * @param {int} cmid Course module ID
-     * @param {int} userid User ID
-     * @return {Promise}
-     */
-    var assignAvatar = (cmid, userid) => {
-        // Load the modal fragment.
-        return ModalFactory.create(
-            {
-                type: ModalFactory.types.DEFAULT,
-                title: Str.get_string("assignnewavatar", "mod_avatar"),
-                body: Fragment.loadFragment("mod_avatar", "available_avatars", 1, {cmid: cmid, userid: userid}),
-                large: true,
-            }
-        ).then((modal) => {
-            modal.show();
-            // Handle form submission
-            modal.getRoot().on("click", ".assign-avatar-btn", (e) => {
-                e.preventDefault();
-                var form = e.currentTarget.querySelector("form");
-                // Submit form via AJAX
-                Ajax.call([
-                    {
-                        methodname: "mod_avatar_collect_avatar",
-                        args: {
-                            avatarid: form.querySelector('input[name="avatarid"]')?.value,
-                            cmid: cmid,
-                            userid: userid,
-                        },
-                        done: (response) => {
-                            if (response.success) {
-                                // Reload page to show updated avatar
-                                window.location.reload();
-                            } else {
-                                Notification.addNotification({
-                                    message: response.message,
-                                    type: "error",
-                                });
-                            }
-                        },
-                        fail: Notification.exception,
-                    },
-                ]);
-            });
+const SELECTOR = '.collect-avatar[data-avatarid], .upgrade-avatar[data-avatarid]';
 
-            modal.getRoot().on('click', '.upgrade-avatar-btn', (e) => {
-                e.preventDefault();
-                var form = e.currentTarget.querySelector("form");
-                // Submit form via AJAX
-                Ajax.call([
-                    {
-                        methodname: "mod_avatar_upgrade_avatar",
-                        args: {
-                            avatarid: form.querySelector('input[name="avatarid"]')?.value,
-                            cmid: cmid,
-                            userid: userid,
-                        },
-                        done: (response) => {
-                            if (response.success) {
-                                // Reload page to show updated avatar
-                                window.location.reload();
-                            } else {
-                                Notification.addNotification({
-                                    message: response.message,
-                                    type: "error",
-                                });
-                            }
-                        },
-                        fail: Notification.exception,
-                    },
-                ]);
-            });
+let initialised = false;
 
-            return modal;
-        });
-    };
+/**
+ * Collects or upgrades the avatar of the clicked button, then reloads the page.
+ *
+ * @param {HTMLElement} button The clicked button.
+ */
+const submit = (button) => {
+    const methodname = button.classList.contains('collect-avatar') ? 'mod_avatar_collect_avatar' : 'mod_avatar_upgrade_avatar';
+    button.disabled = true;
+    Ajax.call([{
+        methodname: methodname,
+        args: {avatarid: parseInt(button.dataset.avatarid), cmid: parseInt(button.dataset.cmid)},
+    }])[0].then((response) => {
+        if (response.success) {
+            // The confirmation is shown as notification after the reload.
+            window.location.reload();
+        } else {
+            button.disabled = false;
+            Notification.addNotification({message: response.message, type: 'error'});
+        }
+        return response;
+    }).catch((error) => {
+        button.disabled = false;
+        Notification.exception(error);
+    });
+};
 
-    var init = (cmid) => {
-
-        // Handle avatar assignment
-        document.querySelector(SELECTORS.ASSIGN_AVATAR_BTN)?.addEventListener('click', (e) => {
+/**
+ * Listens to the pick and upgrade buttons of the page (once per page).
+ */
+export const pickAvatar = () => {
+    if (initialised) {
+        return;
+    }
+    initialised = true;
+    document.addEventListener('click', (e) => {
+        const button = e.target.closest(SELECTOR);
+        if (button) {
             e.preventDefault();
-            var userid = e.currentTarget.dataset.userid;
-            assignAvatar(cmid, userid);
-        });
-
-        // Upgrade the avatar on click.
-        document.querySelector(SELECTORS.UPGRADE_AVATAR_BTN)?.addEventListener('click', (e) => {
-            e.preventDefault();
-            var userid = e.currentTarget.dataset.userid;
-            var avatarid = e.currentTarget.dataset.avatarid;
-
-            // Submit form via AJAX
-            Ajax.call([
-                {
-                    methodname: "mod_avatar_upgrade_avatar",
-                    args: {
-                        avatarid: avatarid,
-                        cmid: cmid,
-                        userid: userid,
-                    },
-                    done: (response) => {
-                        if (response.success) {
-                            // Reload page to show updated avatar
-                            window.location.reload();
-                        } else {
-                            Notification.addNotification({
-                                message: response.message,
-                                type: "error",
-                            });
-                        }
-                    },
-                    fail: Notification.exception,
-                },
-            ]);
-        });
-    };
-
-    var pickAvatar = function() {
-
-        const selector = '.collect-avatar, .upgrade-avatar';
-
-        document.querySelectorAll(selector)?.forEach(
-            (element) => element.addEventListener('click', function(e) {
-                e.preventDefault();
-
-                var avatarId = e.currentTarget.dataset.avatarid;
-                var cmid = e.currentTarget.dataset.cmid;
-
-                var action = e.currentTarget.classList.contains('collect-avatar') ? 'collect' : 'upgrade';
-                var methodName = action === 'collect' ? 'mod_avatar_collect_avatar' : 'mod_avatar_upgrade_avatar';
-
-                Ajax.call([{
-                    methodname: methodName,
-                    args: {avatarid: avatarId, cmid: cmid},
-                    done: function(response) {
-                        Notification.addNotification({
-                            message: response.message,
-                            type: response.success ? 'success' : 'error'
-                        });
-                        if (response.success) {
-                            window.location.reload();
-                        }
-                    },
-                    fail: Notification.exception
-                }]);
-            })
-        );
-    };
-
-    return {
-        init: init,
-        pickAvatar: pickAvatar,
-    };
-});
+            submit(button);
+        }
+    });
+};

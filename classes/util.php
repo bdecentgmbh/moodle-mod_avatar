@@ -30,141 +30,136 @@ use stdClass;
  * Utility class for mod_avatar.
  */
 class util {
-
     /**
-     * Update users profile picture with the assigned avatar.
+     * Makes a variant of an avatar the profile picture of a user.
      *
-     * @param int $userid
-     * @param int $avatarid
-     * @param int $variant
-     * @return bool
+     * @param int $userid The user.
+     * @param int $avatarid The avatar.
+     * @param int $variant The variant; its thumbnail is used, or its image when it has no thumbnail.
+     * @return bool Whether the picture was changed.
      */
     public static function update_user_profile_picture($userid, $avatarid, $variant = 1) {
-        global $DB, $CFG, $USER;
+        global $CFG, $DB, $USER;
 
         require_once($CFG->libdir . '/gdlib.php');
-        require_once($CFG->dirroot.'/user/lib.php');
 
         $fs = get_file_storage();
-        $user = $DB->get_record('user', ['id' => $userid], '*', MUST_EXIST);
-        $usercontext = \context_user::instance($userid);
-        $systemcontext = \context_system::instance();
-
-        // Get the thumbnail of the avatar.
+        $systemcontext = \core\context\system::instance();
         $files = $fs->get_area_files($systemcontext->id, 'mod_avatar', "avatarthumbnail{$variant}", $avatarid, 'sortorder', false);
-
-        // If thumbnail is not available, use the avatar image.
-        if (empty($files)) {
+        if (!$files) {
             $files = $fs->get_area_files($systemcontext->id, 'mod_avatar', "avatarimage{$variant}", $avatarid, 'sortorder', false);
         }
-
-        if ($files) {
-            $file = reset($files);
-
-            if (!$tempfile = $file->copy_content_to_temp()) {
-                $fs->delete_area_files($context->id, 'user', 'newicon');
-                throw new \moodle_exception('There was a problem copying the profile picture to temp.');
-            }
-
-            // Process the image and set it as the users profile picture.
-            $newpicture = process_new_icon($usercontext, 'user', 'icon', 0, $tempfile);
-            $DB->set_field('user', 'picture', $newpicture, ['id' => $userid]);
-
-            // Trigger event for updated user profile picture.
-            \core\event\user_updated::create_from_userid($userid)->trigger();
-
-            // Remove stale sessions.
-            \core\session\manager::gc();
-
-            // Set the users picture.
-            $updateuser = new stdClass();
-            $updateuser->id = $userid;
-            $updateuser->picture = $newpicture;
-
-            // Update the current users picture.
-            if ($USER->id == $userid) {
-                $USER->picture = $newpicture;
-            }
-
-            user_update_user($updateuser);
-
-            return true;
+        $file = reset($files);
+        if (!$file || !$file->is_valid_image()) {
+            return false;
         }
 
-        return false;
+        $tempfile = $file->copy_content_to_temp();
+        if (!$tempfile) {
+            return false;
+        }
+        $usercontext = \core\context\user::instance($userid);
+        $newpicture = (int) process_new_icon($usercontext, 'user', 'icon', 0, $tempfile);
+        @unlink($tempfile);
+        if (!$newpicture) {
+            return false;
+        }
+
+        $DB->set_field('user', 'picture', $newpicture, ['id' => $userid]);
+        if ($USER->id == $userid) {
+            $USER->picture = $newpicture;
+        }
+        \core\event\user_updated::create_from_userid($userid)->trigger();
+
+        return true;
     }
 
     /**
-     * Get users current avatars
+     * The avatars of a user's collection.
      *
      * @param int $userid The user ID
-     * @return array Array of users avatars indexed by avatar ID
+     * @return \mod_avatar\avatar[] By avatar ID.
      */
     public static function get_user_avatars($userid) {
         global $DB;
 
-        $records = $DB->get_records('avatar_user', ['userid' => $userid]);
+        $records = $DB->get_records_sql(
+            "SELECT au.*
+               FROM {avatar_user} au
+               JOIN {avatar_list} al ON al.id = au.avatarid
+              WHERE au.userid = :userid",
+            ['userid' => $userid]
+        );
         $avatars = [];
         foreach ($records as $record) {
-            if ($DB->record_exists('avatar_list', ['id' => $record->avatarid])) {
-                $avatars[$record->avatarid] = new avatar($record->avatarid, null, $record);
-            }
+            $avatars[$record->avatarid] = new avatar($record->avatarid, null, $record);
         }
         return $avatars;
     }
 
     /**
-     * Get the avatar course module instance.
+     * The instance of an avatar activity.
      *
      * @param int $instanceid
-     * @return void
+     * @return \stdClass|false
      */
     public static function get_avatar_cminstance(int $instanceid) {
         global $DB;
-
         return $DB->get_record('avatar', ['id' => $instanceid]);
     }
 
     /**
-     * Get mentees assigned students list.
+     * Adds "My avatars" to the user menu.
      *
-     * @return bool|mixed List of users assigned as child users.
+     * @param \core_user\hook\extend_user_menu $hook
      */
-    public static function get_myusers() {
-        global $DB, $USER;
-
-        if ($usercontexts = $DB->get_records_sql("SELECT c.instanceid, c.instanceid
-                                                FROM {role_assignments} ra, {context} c, {user} u
-                                                WHERE ra.userid = ?
-                                                        AND ra.contextid = c.id
-                                                        AND c.instanceid = u.id
-                                                        AND u.deleted = 0 AND u.suspended = 0
-                                                        AND c.contextlevel = ".CONTEXT_USER, [$USER->id])) {
-
-            $users = [];
-            foreach ($usercontexts as $usercontext) {
-                $users[] = $usercontext->instanceid;
-            }
-            return $users;
+    public static function include_myavatars_usermenu($hook) {
+        if (!isloggedin() || isguestuser() || !has_capability('mod/avatar:view', \core\context\system::instance())) {
+            return;
         }
-        return false;
+        $url = new \moodle_url('/mod/avatar/myavatars.php');
+        $title = get_string('myavatars', 'mod_avatar');
+        if (method_exists($hook, 'add_menu_item')) {
+            // Moodle 5.3 and later.
+            $hook->add_menu_item(new \core_user\output\user_action_menu\link($url, $title));
+        } else {
+            $hook->add_navitem((object) [
+                'itemtype' => 'link',
+                'url' => $url,
+                'title' => $title,
+                'titleidentifier' => 'myavatars,mod_avatar',
+            ]);
+        }
     }
 
     /**
-     * Include myavatars link in the user menu.
+     * Sets up a page of the avatar library (Manage avatars, edit an avatar, addon pages).
      *
-     * @param \core\navigation\views\core_user_menu $hook
-     * @return void
+     * Site administrators get the page in the admin tree. Other users (e.g. managers with mod/avatar:overview)
+     * get the same page outside of it, because the admin tree only contains plugin settings for site admins.
+     * Callers check the capabilities of their page.
+     *
+     * @param \moodle_url $url The URL of the page.
+     * @param string $title The title and heading.
+     * @return \core\context\system
      */
-    public static function include_myavatars_usermenu($hook) {
+    public static function setup_library_page(\moodle_url $url, string $title): \core\context\system {
+        global $CFG, $PAGE;
+        require_once($CFG->libdir . '/adminlib.php');
 
-        // Build a logout link.
-        $avatar = new \stdClass();
-        $avatar->itemtype = 'link';
-        $avatar->url = new \moodle_url('/mod/avatar/myavatars.php');
-        $avatar->title = get_string('myavatars', 'mod_avatar');
-        $avatar->titleidentifier = 'myavatars,mod_avatar';
+        $context = \core\context\system::instance();
+        require_login(null, false);
 
-        $hook->add_navitem($avatar);
+        if (has_capability('moodle/site:config', $context)) {
+            admin_externalpage_setup('manageavatars', '', null, $url);
+        } else {
+            $PAGE->set_context($context);
+            $PAGE->set_url($url);
+            $PAGE->set_pagelayout('admin');
+        }
+        $PAGE->set_title($title);
+        $PAGE->set_heading($title);
+
+        return $context;
     }
 }

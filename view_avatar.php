@@ -23,54 +23,53 @@
  */
 
 require_once('../../config.php');
-require_once(dirname(__FILE__).'/lib.php');
 
-$cmid = optional_param('cmid', 0, PARAM_INT);  // Course module ID.
-$avatarid = required_param('avatarid', PARAM_INT); // Avatar ID.
+$cmid = optional_param('cmid', 0, PARAM_INT);
+$avatarid = required_param('avatarid', PARAM_INT);
 
-$avatar = $DB->get_record('avatar_list', ['id' => $avatarid], '*', MUST_EXIST);
+$record = $DB->get_record('avatar_list', ['id' => $avatarid], '*', MUST_EXIST);
+$useravatar = \mod_avatar\collection::get_user_avatar($USER->id, $avatarid);
 
 if ($cmid) {
-    $cm = get_coursemodule_from_id('avatar', $cmid, 0, false, MUST_EXIST);
-    $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
-    $avatarinstance = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
+    // The avatar within an activity: only the avatars the activity offers.
+    [$course, $cm] = get_course_and_cm_from_cmid($cmid, 'avatar');
     require_login($course, true, $cm);
-    $context = context_module::instance($cm->id);
+    $context = \core\context\module::instance($cm->id);
+    require_capability('mod/avatar:view', $context);
+    $instance = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
+    if (!\mod_avatar\activity::offers_avatar($instance, $avatarid) && !$useravatar) {
+        throw new moodle_exception('avatarnotavailable', 'mod_avatar');
+    }
     $PAGE->set_url('/mod/avatar/view_avatar.php', ['avatarid' => $avatarid, 'cmid' => $cmid]);
 } else {
-    // If no course module ID is provided, we're viewing the avatar outside of a course context.
-    $cm = null;
-    $course = null;
-    $avatarinstance = null;
-    require_login();
-    $context = context_system::instance();
+    // The avatar outside of activities (My avatars, tag page): active avatars, or avatars the user owns.
+    require_login(null, false);
+    $context = \core\context\system::instance();
+    require_capability('mod/avatar:view', $context);
+    $active = $record->status && !$record->archived;
+    if (!$active && !$useravatar && !has_capability('mod/avatar:overview', $context)) {
+        throw new moodle_exception('avatarnotavailable', 'mod_avatar');
+    }
+    $PAGE->set_context($context);
     $PAGE->set_url('/mod/avatar/view_avatar.php', ['avatarid' => $avatarid]);
+    $PAGE->set_pagelayout('standard');
 }
 
-// Set up the page.
-$PAGE->set_context($context);
-$PAGE->set_title(format_string($avatar->name));
-// Limit the width of the avatar page.
+$name = format_string($record->name, true, ['context' => \core\context\system::instance()]);
+$PAGE->set_title($name);
+$PAGE->set_heading($cmid ? format_string($course->fullname, true, ['context' => $context]) : $name);
 $PAGE->add_body_class('limitedwidth');
 
-// Avatar info viewed, trigger the event.
-$event = \mod_avatar\event\avatar_viewed::create([
-    'objectid' => $avatar->id,
+\mod_avatar\event\avatar_viewed::create([
+    'objectid' => $record->id,
     'context' => $context,
-]);
-$event->trigger();
-
-// Get the users avatar list.
-$useravatar = $DB->get_record('avatar_user', ['userid' => $USER->id, 'avatarid' => $avatarid]);
+])->trigger();
 
 echo $OUTPUT->header();
-// Display avatar name.
-echo $OUTPUT->heading(format_string($avatar->name));
+echo $OUTPUT->heading($name);
 
-// Display avatar information.
-$avatar = new \mod_avatar\avatar($avatarid);
-$avatarinfo = new \mod_avatar\output\avatar_info($avatar, $useravatar, $cmid);
-echo $OUTPUT->render($avatarinfo);
+$avatar = new \mod_avatar\avatar($avatarid, $record);
+echo $OUTPUT->render(new \mod_avatar\output\avatar_info($avatar, $useravatar, $cmid));
 
 $PAGE->requires->js_call_amd('mod_avatar/avatar_assign', 'pickAvatar', []);
 

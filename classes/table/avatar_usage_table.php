@@ -24,226 +24,157 @@
 
 namespace mod_avatar\table;
 
-use core\plugininfo\format;
-use mod_avatar\util;
-use html_writer;
-use moodle_url;
-
 defined('MOODLE_INTERNAL') || die();
 
-use core_table\dynamic as dynamic_table;
-use mod_avatar\avatar;
+require_once($CFG->libdir . '/tablelib.php');
 
-require_once($CFG->libdir.'/tablelib.php');
+use core\output\html_writer;
+use core_table\dynamic as dynamic_table;
+use mod_avatar\local\usage;
 
 /**
- * Avatar usage table.
+ * Where an avatar of the library is used: activities and courses that offer it, or users who collected it.
+ *
+ * Shown in a modal on the Manage avatars page (fragment avatar_usage); only for mod/avatar:overview.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class avatar_usage_table extends \table_sql implements dynamic_table {
+    /** @var int The avatar. */
+    protected $avatarid = 0;
+
+    /** @var string The usage: activities, courses or users. */
+    protected $type = '';
 
     /**
-     * @var int Course module ID
-     */
-    protected $cmid;
-
-    /**
-     * @var int User ID
-     */
-    protected $avatarid;
-
-    /**
-     * Type of the usage.
+     * Constructor.
      *
-     * @var string User ID
-     */
-    protected $type;
-
-    /**
-     * Course module instance.
-     *
-     * @var cm_info
-     */
-    protected $cmavatar;
-
-    /**
-     * User avatar.
-     *
-     * @var array
-     */
-    protected $useravatar;
-
-    /**
-     * User ID.
-     *
-     * @var int
-     */
-    protected $userid;
-
-    /**
-     * Constructor
-     *
-     * @param string $uniqueid Unique id of table
+     * @param string $uniqueid Unique id of the table.
      */
     public function __construct($uniqueid) {
         parent::__construct($uniqueid);
 
-        // Define columns.
-        $columns = [
-            'name' => get_string('name'),
-            'view' => get_string('view'),
-        ];
-        $this->define_columns(array_keys($columns));
-        $this->define_headers(array_values($columns));
-
+        $this->define_columns(['name', 'view']);
+        $this->define_headers([get_string('name'), get_string('view')]);
         $this->collapsible(false);
-
         $this->pageable(true);
         $this->is_downloadable(false);
-
         $this->no_sorting('view');
-
     }
 
     /**
-     * Base url for the table.
-     *
-     * @return void
+     * Base URL of the table.
      */
     public function guess_base_url(): void {
-        $this->baseurl = new \moodle_url('/mod/avatar/report.php', ['cmid' => $this->cmid, 'userid' => $this->userid]);
+        $this->baseurl = new \moodle_url('/mod/avatar/manage.php');
     }
 
     /**
-     * Context of thet table.
+     * Context of the table.
      *
      * @return \core\context
      */
     public function get_context(): \core\context {
-        return \context_system::instance();
+        return \core\context\system::instance();
     }
 
     /**
-     * Is user has capability.
+     * Only users who may see the avatar overview see where avatars are used.
      *
      * @return bool
      */
     public function has_capability(): bool {
-        return true;
+        return has_capability('mod/avatar:overview', $this->get_context());
     }
 
     /**
-     * SEtup the table records.
+     * Query the records.
      *
      * @param int $pagesize
      * @param bool $useinitialsbar
-     * @return void
      */
     public function query_db($pagesize, $useinitialsbar = true) {
         global $DB;
 
         if ($this->filterset->has_filter('avatarid')) {
-            $values = $this->filterset->get_filter('avatarid')->get_filter_values();
-            $avatarid = isset($values[0]) ? current($values) : '';
-            $this->avatarid = $avatarid;
+            $this->avatarid = (int) ($this->filterset->get_filter('avatarid')->get_filter_values()[0] ?? 0);
         }
-
         if ($this->filterset->has_filter('type')) {
-            $values = $this->filterset->get_filter('type')->get_filter_values();
-            $type = isset($values[0]) ? current($values) : '';
-            $this->type = $type;
+            $this->type = (string) ($this->filterset->get_filter('type')->get_filter_values()[0] ?? '');
         }
 
-        if ($this->type == 'users') {
-
-            $fullname = $DB->sql_fullname('u.firstname', 'u.lastname');
-            $this->set_sql("u.*, au.avatarid, $fullname as name", '{avatar_user} au JOIN {user} u ON u.id = au.userid',
-                'au.avatarid = :avatarid', ['avatarid' => $this->avatarid]);
-
-        } else if ($this->type == 'activities') {
-
-            $tags = \core_tag_tag::get_item_tags_array('mod_avatar', 'avatar', $this->avatarid);
-            $inparams = [];
-
-            if (!empty($tags)) {
-
-                foreach ($tags as $k => $tag) {
-                    $like[] = $DB->sql_like('sav.specifictags', ':tag' . $k);
-                    $inparams['tag' . $k] = '%' . $tag . '%';
-                }
-
-                $where = 'AND av.id IN (
-                    SELECT sav.id FROM {avatar} sav
-                    WHERE (' . implode(' OR ', $like) . ')
-                )';
-
-            }
-
-            $this->set_sql('cm.*, av.id as cmavatarid, av.name as name', '{course_modules} cm
-                JOIN {modules} md ON md.name=:modname and md.id = cm.module
-                JOIN {avatar} av ON av.id = cm.instance', "av.avatarselection = :avatarselection
-                    OR (av.avatarselection = 1 $where)",
-                ['modname' => 'avatar', 'avatarselection' => 0] + $inparams);
-
-        } else if ($this->type == 'courses') {
-
-            $tags = \core_tag_tag::get_item_tags_array('mod_avatar', 'avatar', $this->avatarid);
-            $inparams = [];
-
-            if (!empty($tags)) {
-
-                foreach ($tags as $k => $tag) {
-                    $like[] = $DB->sql_like('sav.specifictags', ':tag' . $k);
-                    $inparams['tag' . $k] = '%' . $tag . '%';
-                }
-
-                $where = 'AND av.id IN (
-                    SELECT sav.id FROM {avatar} sav
-                    WHERE (' . implode(' OR ', $like) . ')
-                )';
-            }
-
-            $this->set_sql('c.*, c.fullname as name', '{course} c',
-                "c.id IN (
-                    SELECT cm.course FROM {course_modules} cm
-                    JOIN {modules} md ON md.name=:modname and md.id = cm.module
-                    JOIN {avatar} av ON av.id = cm.instance
-                    WHERE av.avatarselection = :avatarselection OR (av.avatarselection = 1 $where)
-                )",
-                ['modname' => 'avatar', 'avatarselection' => 0] + $inparams
+        if ($this->type === 'users') {
+            $userfields = \core_user\fields::for_name()->get_sql('u', false, '', '', false)->selects;
+            $this->set_sql(
+                "u.id, $userfields",
+                '{avatar_user} au JOIN {user} u ON u.id = au.userid',
+                'au.avatarid = :avatarid AND u.deleted = 0',
+                ['avatarid' => $this->avatarid]
             );
+            $this->sortable(true, 'lastname');
+        } else {
+            $instances = usage::get_instances_offering($this->avatarid);
+            if ($this->type === 'courses') {
+                $ids = array_unique(array_column($instances, 'course')) ?: [0];
+                [$insql, $params] = $DB->get_in_or_equal($ids, SQL_PARAMS_NAMED);
+                $this->set_sql('c.id, c.fullname AS name', '{course} c', "c.id $insql", $params);
+            } else {
+                $ids = array_column($instances, 'cmid') ?: [0];
+                [$insql, $params] = $DB->get_in_or_equal($ids, SQL_PARAMS_NAMED);
+                $this->set_sql(
+                    'cm.id, a.name',
+                    '{course_modules} cm JOIN {avatar} a ON a.id = cm.instance',
+                    "cm.id $insql",
+                    $params
+                );
+            }
         }
 
         parent::query_db($pagesize, false);
-
     }
 
     /**
-     * Format preview column.
+     * The sort columns: the name of a user is sorted by its name fields.
      *
-     * @param object $row Table row
-     * @return string HTML
+     * @return array
+     */
+    public function get_sort_columns() {
+        $columns = parent::get_sort_columns();
+        if ($this->type === 'users' && isset($columns['name'])) {
+            $direction = $columns['name'];
+            unset($columns['name']);
+            $columns = ['lastname' => $direction, 'firstname' => $direction] + $columns;
+        }
+        return $columns;
+    }
+
+    /**
+     * Name of the activity, course or user.
+     *
+     * @param \stdClass $row
+     * @return string
      */
     public function col_name($row) {
-        return format_string($row->name);
+        if ($this->type === 'users') {
+            return s(fullname($row));
+        }
+        return format_string($row->name, true, ['context' => $this->get_context()]);
     }
 
     /**
-     * Format description column.
+     * Link to the activity, course or user profile.
      *
-     * @param object $row Table row.
-     * @return string HTML
+     * @param \stdClass $row
+     * @return string
      */
     public function col_view($row) {
-
-        if ($this->type == 'users') {
-            $url = new \moodle_url('/user/profile.php', ['id' => $row->id]);
-        } else if ($this->type == 'activities') {
-            $url = new \moodle_url('/mod/avatar/view.php', ['id' => $row->id]);
-        } else if ($this->type == 'courses') {
-            $url = new \moodle_url('/course/view.php', ['id' => $row->id]);
-        }
-
-        return \html_writer::link($url, get_string('view'));
+        $url = match ($this->type) {
+            'users' => new \moodle_url('/user/profile.php', ['id' => $row->id]),
+            'courses' => new \moodle_url('/course/view.php', ['id' => $row->id]),
+            default => new \moodle_url('/mod/avatar/view.php', ['id' => $row->id]),
+        };
+        return html_writer::link($url, get_string('view'));
     }
-
 }

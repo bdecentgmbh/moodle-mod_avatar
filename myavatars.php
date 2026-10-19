@@ -25,54 +25,33 @@
 use mod_avatar\util;
 
 require_once('../../config.php');
-require_once($CFG->dirroot.'/mod/avatar/lib.php');
 
-require_login();
+require_login(null, false);
+if (isguestuser()) {
+    throw new \moodle_exception('noguest');
+}
 
-$userid = optional_param('userid', $USER->id, PARAM_INT);
+$context = \core\context\user::instance($USER->id);
+$url = new moodle_url('/mod/avatar/myavatars.php');
 
-$PAGE->set_context(context_user::instance($userid));
-$PAGE->set_url('/mod/avatar/myavatars.php');
+$PAGE->set_context($context);
+$PAGE->set_url($url);
+$PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('myavatars', 'mod_avatar'));
 $PAGE->set_heading(get_string('myavatars', 'mod_avatar'));
 $PAGE->add_body_class('limitedwidth');
 
-$isprimary = optional_param('setasprimary', null, PARAM_INT);
-
-if ($isprimary) {
+// Make an avatar of the own collection the primary avatar.
+if (optional_param('setasprimary', 0, PARAM_BOOL) && confirm_sesskey()) {
     $avatarid = required_param('avatarid', PARAM_INT);
-    $useravatar = $DB->get_record('avatar_user', ['userid' => $userid, 'avatarid' => $avatarid], '*', IGNORE_MISSING);
-
-    if ($useravatar) {
-        $transaction = $DB->start_delegated_transaction();
-        try {
-
-            $DB->set_field('avatar_user', 'isprimary', 0, ['userid' => $userid]);
-            $useravatar->isprimary = 1;
-            $DB->update_record('avatar_user', $useravatar);
-
-            // Profile image sync is enalbed then update the profile picture.
-            if (get_config('mod_avatar', 'profileimagesync')) {
-                util::update_user_profile_picture($userid, $avatarid, $useravatar->variant);
-            }
-
-            $transaction->allow_commit();
-
-        } catch (\Exception $e) {
-            $transaction->rollback($e);
-        }
-    } else {
-        \core_notifications::add_notification(get_string('avatarnotcollected', 'mod_avatar'));
+    if (\mod_avatar\collection::get_user_avatar($USER->id, $avatarid)) {
+        \mod_avatar\collection::set_primary($USER->id, $avatarid);
+        redirect($url, get_string('primaryavatarupdated', 'mod_avatar'), null, \core\output\notification::NOTIFY_SUCCESS);
     }
-
-    redirect($PAGE->url);
+    redirect($url, get_string('avatarnotcollected', 'mod_avatar'), null, \core\output\notification::NOTIFY_ERROR);
 }
 
 echo $OUTPUT->header();
-
-$renderer = $PAGE->get_renderer('mod_avatar');
-echo $renderer->display_my_avatars($userid);
-
+echo $PAGE->get_renderer('mod_avatar')->display_my_avatars($USER->id);
 $PAGE->requires->js_call_amd('mod_avatar/avatar_assign', 'pickAvatar', []);
-
 echo $OUTPUT->footer();

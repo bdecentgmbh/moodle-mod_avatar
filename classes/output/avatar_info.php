@@ -24,17 +24,16 @@
 
 namespace mod_avatar\output;
 
-use mod_avatar\util;
-use renderable;
-use templatable;
-use renderer_base;
+use core\output\renderable;
+use core\output\renderer_base;
+use core\output\templatable;
+use mod_avatar\activity;
 use moodle_url;
 
 /**
  * Avatar info renderable class.
  */
 class avatar_info implements renderable, templatable {
-
     /**
      * @var \mod_avatar\avatar Avatar instance.
      */
@@ -63,7 +62,7 @@ class avatar_info implements renderable, templatable {
      * @param stdclass $useravatar
      * @param int $cmid
      */
-    public function __construct(\mod_avatar\avatar $avatar, $useravatar=null, int $cmid=0) {
+    public function __construct(\mod_avatar\avatar $avatar, $useravatar = null, int $cmid = 0) {
         $this->avatar = $avatar;
         $this->context = \context_system::instance();
         $this->useravatar = $useravatar;
@@ -88,49 +87,58 @@ class avatar_info implements renderable, templatable {
     public function export_for_template(renderer_base $output) {
         global $DB, $USER;
 
-        // Get formatted tags.
         $tagdata = $this->get_formatted_tags();
         $progress = $this->get_progress();
 
+        $cm = null;
+        $cmavatar = null;
         if ($this->cmid) {
-            list($course, $cm) = get_course_and_cm_from_cmid($this->cmid);
-            $cmavatar = util::get_avatar_cminstance($cm->instance);
+            [$course, $cm] = get_course_and_cm_from_cmid($this->cmid, 'avatar');
+            $cmavatar = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
         }
 
+        $options = ['context' => $this->context];
         $description = file_rewrite_pluginfile_urls(
-            $this->avatar->description, 'pluginfile.php', $this->context->id, 'mod_avatar', 'description', $this->avatar->id);
+            (string) $this->avatar->description,
+            'pluginfile.php',
+            $this->context->id,
+            'mod_avatar',
+            'description',
+            $this->avatar->id
+        );
+        $fullyupgraded = !empty($this->useravatar) && $this->useravatar->variant >= $this->avatar->variants;
 
-        // Use the high variant image if not available user preview image.
+        // The secret information is revealed once the avatar is collected.
+        $viewsecretinfo = !empty($this->useravatar) && trim(strip_tags((string) $this->avatar->secretinfo)) !== '';
+
         $data = array_merge([
             'id' => $this->avatar->id,
-            'name' => $this->avatar->name,
-            'description' => format_text($description, FORMAT_HTML),
+            'name' => format_string($this->avatar->name, true, $options),
+            'description' => format_text($description, $this->avatar->descriptionformat, $options),
             'variantimage' => $this->useravatar ? $this->get_variant_image_url() : $this->get_preview_image(),
             'current_variant' => !empty($this->useravatar) ? $this->useravatar->variant : 0,
             'total_variants' => $this->avatar->variants,
             'additional_media' => $this->useravatar ? $this->get_animationstate_images() : $this->get_additional_media(),
             'variants' => $this->get_variant_images(),
             'progress' => $progress['indicators'],
-            'canpick' => $progress['canpick'],
-            'canupgrade' => $progress['canupgrade'],
-            'fully_upgraded' => !empty($this->useravatar) && $this->useravatar->variant == $this->avatar->variants,
-            'secretinfo' => format_text($this->avatar->secretinfo, FORMAT_HTML),
+            'canpick' => $progress['canpick'] && $cm && has_capability('mod/avatar:collect', $cm->context),
+            'canupgrade' => $progress['canupgrade'] && $cm && has_capability('mod/avatar:upgrade', $cm->context),
+            'fully_upgraded' => $fullyupgraded,
+            'viewsecretinfo' => $viewsecretinfo,
+            'secretinfo' => $viewsecretinfo
+                ? format_text($this->avatar->secretinfo, $this->avatar->secretinfoformat, $options) : '',
             'cmid' => $this->cmid,
-            'isavailable' => $this->avatar->is_avatar_available($USER->id, $cm ?? null),
-
+            'isavailable' => $cm && \mod_avatar\collection::get_activity_availability($cm, $cmavatar, $USER->id)->is_available()
+                && $this->avatar->is_avatar_available($USER->id, $cm),
         ], $tagdata);
 
         $data['hasadditionalmedia'] = !empty($data['additional_media']);
-        $data['viewsecretinfo'] = $data['secretinfo'] && ($data['canupgrade'] || $data['fully_upgraded']);
 
-        if (!empty($cmavatar)) {
-            $avataractivity = new avatar_activity($cmavatar, $cm, $course);
-            list($sql, $params) = $avataractivity->get_available_avatars_sql();
-            $avatars = $DB->get_records_sql($sql, $params);
+        if ($cmavatar) {
+            $avatars = activity::get_avatars($cmavatar);
             $data['previousavatarurl'] = $this->get_previous_avatar_url($avatars);
             $data['nextavatarurl'] = $this->get_next_avatar_url($avatars);
         }
-        // Get the avatar image URL.
         return $data;
     }
 
@@ -145,7 +153,13 @@ class avatar_info implements renderable, templatable {
         $variant = !empty($this->useravatar) ? $this->useravatar->variant : 1;
         $fs = get_file_storage();
         $files = $fs->get_area_files(
-            $this->context->id, 'mod_avatar', "avatarthumbnail{$variant}", $this->avatar->id, 'sortorder', false);
+            $this->context->id,
+            'mod_avatar',
+            "avatarthumbnail{$variant}",
+            $this->avatar->id,
+            'sortorder',
+            false
+        );
         if ($files) {
             $file = reset($files);
             return moodle_url::make_pluginfile_url(
@@ -155,7 +169,7 @@ class avatar_info implements renderable, templatable {
                 $this->avatar->id,
                 $file->get_filepath(),
                 $file->get_filename()
-            )->out();
+            )->out(false);
         }
 
         return $this->get_variant_image_url();
@@ -172,15 +186,25 @@ class avatar_info implements renderable, templatable {
         $variant = !empty($this->useravatar) ? $this->useravatar->variant : 1;
         $fs = get_file_storage();
         $files = $fs->get_area_files(
-            $this->context->id, 'mod_avatar', "avatarimage{$variant}", $this->avatar->id, 'sortorder', false);
+            $this->context->id,
+            'mod_avatar',
+            "avatarimage{$variant}",
+            $this->avatar->id,
+            'sortorder',
+            false
+        );
         if ($files) {
             $file = reset($files);
             return moodle_url::make_pluginfile_url(
-                $this->context->id, 'mod_avatar', "avatarimage{$variant}",
-                $this->avatar->id, $file->get_filepath(), $file->get_filename()
-            )->out();
+                $this->context->id,
+                'mod_avatar',
+                "avatarimage{$variant}",
+                $this->avatar->id,
+                $file->get_filepath(),
+                $file->get_filename()
+            )->out(false);
         }
-        return $OUTPUT->image_url('default_avatar', 'mod_avatar')->out();
+        return $OUTPUT->image_url('default_avatar', 'mod_avatar')->out(false);
     }
 
     /**
@@ -194,7 +218,13 @@ class avatar_info implements renderable, templatable {
         $variant = !empty($this->useravatar) ? $this->useravatar->variant : 1;
         $fs = get_file_storage();
         $files = $fs->get_area_files(
-            $this->context->id, 'mod_avatar', "animationstates{$variant}", $this->avatar->id, 'sortorder', false);
+            $this->context->id,
+            'mod_avatar',
+            "animationstates{$variant}",
+            $this->avatar->id,
+            'sortorder',
+            false
+        );
 
         $media = [];
         $i = 0;
@@ -202,9 +232,13 @@ class avatar_info implements renderable, templatable {
             if ($file->is_valid_image()) {
                 $media[] = [
                     'url' => moodle_url::make_pluginfile_url(
-                        $this->context->id, 'mod_avatar', "animationstates{$variant}",
-                        $this->avatar->id, $file->get_filepath(), $file->get_filename()
-                    )->out(),
+                        $this->context->id,
+                        'mod_avatar',
+                        "animationstates{$variant}",
+                        $this->avatar->id,
+                        $file->get_filepath(),
+                        $file->get_filename()
+                    )->out(false),
                     'type' => 'image',
                     'alt' => $file->get_filename(),
                     'active' => empty($media) ? true : false,
@@ -225,7 +259,13 @@ class avatar_info implements renderable, templatable {
     private function get_additional_media() {
         $fs = get_file_storage();
         $files = $fs->get_area_files(
-            $this->context->id, 'mod_avatar', 'additionalmedia', $this->avatar->id, 'sortorder', false);
+            $this->context->id,
+            'mod_avatar',
+            'additionalmedia',
+            $this->avatar->id,
+            'sortorder',
+            false
+        );
 
         $media = [];
         $i = 0;
@@ -239,7 +279,7 @@ class avatar_info implements renderable, templatable {
                         $this->avatar->id,
                         $file->get_filepath(),
                         $file->get_filename()
-                    )->out(),
+                    )->out(false),
                     'type' => 'image',
                     'alt' => $file->get_filename(),
                     'active' => empty($media) ? true : false,
@@ -261,9 +301,14 @@ class avatar_info implements renderable, templatable {
         $variants = [];
         $fs = get_file_storage();
         for ($i = 1; $i <= $this->avatar->variants; $i++) {
-
             $files = $fs->get_area_files(
-                $this->context->id, 'mod_avatar', "avatarimage{$i}", $this->avatar->id, 'sortorder', false);
+                $this->context->id,
+                'mod_avatar',
+                "avatarimage{$i}",
+                $this->avatar->id,
+                'sortorder',
+                false
+            );
 
             if ($files) {
                 $file = reset($files);
@@ -276,7 +321,7 @@ class avatar_info implements renderable, templatable {
                         $this->avatar->id,
                         $file->get_filepath(),
                         $file->get_filename()
-                    )->out(),
+                    )->out(false),
                 ];
             }
         }
@@ -304,10 +349,10 @@ class avatar_info implements renderable, templatable {
                 $this->avatar->id,
                 $file->get_filepath(),
                 $file->get_filename()
-            )->out();
+            )->out(false);
         }
 
-        return $OUTPUT->image_url('default_avatar', 'mod_avatar')->out();
+        return $OUTPUT->image_url('default_avatar', 'mod_avatar')->out(false);
     }
 
     /**
@@ -351,7 +396,6 @@ class avatar_info implements renderable, templatable {
 
         // Create map of tag names to image URLs.
         foreach ($tagimages as $file) {
-
             if ($file->is_valid_image()) {
                 $filename = $file->get_filename();
                 $tagname = pathinfo($filename, PATHINFO_FILENAME); // Get filename without extension.
@@ -362,23 +406,23 @@ class avatar_info implements renderable, templatable {
                     0,
                     $file->get_filepath(),
                     $filename
-                )->out();
+                )->out(false);
             }
         }
 
         // Sort tags into image and text arrays.
         foreach ($tags as $tag) {
-            $tagname = $tag->get_display_name();
+            $tagname = $tag->get_display_name(false);
             if (isset($tagimagemap[$tagname])) {
                 $imagetags[] = [
                     'name' => $tagname,
-                    'url' => $tag->get_view_url()->out(),
+                    'url' => $tag->get_view_url()->out(false),
                     'image_url' => $tagimagemap[$tagname],
                 ];
             } else {
                 $texttags[] = [
                     'name' => $tagname,
-                    'url' => $tag->get_view_url()->out(),
+                    'url' => $tag->get_view_url()->out(false),
                 ];
             }
         }
@@ -392,94 +436,12 @@ class avatar_info implements renderable, templatable {
     }
 
     /**
-     * Get the avatar usage information.
+     * Where the avatar is used (see {@see \mod_avatar\local\usage::get_counts()}).
      *
-     * @return array Avatar usage information
+     * @return int[] ['activities' => int, 'courses' => int, 'users' => int]
      */
     public function get_avatar_usage() {
-        global $DB;
-
-        // Gets the avatars list in the order for each avatar cm instance.
-        // For each cm instance the current avatar is available.
-        // Therefore we need to count all the possibilities of this current avatar available in each cm.
-        $cmlist = $this->get_avatar_usage_details('activities');
-
-        $cmavatars = [];
-        $courses = [];
-        foreach ($cmlist as $cmid => $avatars) {
-            $avatarlist = $avatars[$this->avatar->id] ?? [];
-            foreach ($avatarlist as $avatar) {
-                $cmavatars[$cmid] = $avatar['cm'];
-                $courses[$avatar['course']->id] = $avatar['course'];
-            }
-        }
-
-        $users = $this->get_avatar_usage_details('users');
-
-        return [
-            'courses' => count($courses),
-            'activities' => count($cmavatars),
-            'users' => count($users[$this->avatar->id] ?? []),
-        ];
-    }
-
-    /**
-     * Get the avatar usage details.
-     *
-     * @param string $type The type of usage to get
-     * @return array Avatar usage details
-     */
-    public function get_avatar_usage_details($type) {
-        global $DB;
-
-        switch ($type) {
-            case 'courses':
-            case 'activities':
-
-                $sql = "SELECT cm.id as cmid, av.* FROM {course_modules} cm
-                        JOIN {modules} md ON md.name=:modname and md.id = cm.module
-                        JOIN {avatar} av ON av.id = cm.instance";
-
-                $cmlist = $DB->get_recordset_sql($sql, ['modname' => 'avatar']);
-
-                $avatars = [];
-                foreach ($cmlist as $cmavatar) {
-                    list($course, $cm) = get_course_and_cm_from_cmid($cmavatar->cmid, 'avatar');
-                    $avataractivity = new avatar_activity($cmavatar, $cm, $course);
-
-                    list($sql, $params) = $avataractivity->get_available_avatars_sql();
-                    $records = $DB->get_records_sql($sql, $params);
-
-                    foreach ($records as $record) {
-                        $avatars[$cm->id][$record->id][] = ['avatar' => $record, 'cm' => $cmavatar, 'course' => $course];
-                    }
-                }
-
-                $cmlist->close();
-                break;
-
-            case 'users':
-
-                $sql = "
-                SELECT u.*, au.avatarid
-                FROM {avatar_user} au
-                JOIN {user} u ON u.id = au.userid";
-
-                $records = $DB->get_recordset_sql($sql);
-
-                $avatars = [];
-                foreach ($records as $record) {
-                    $avatars[$record->avatarid][$record->id] = $record;
-                }
-
-                $records->close();
-                break;
-
-            default:
-                return [];
-
-        }
-        return $avatars ?? [];
+        return \mod_avatar\local\usage::get_counts($this->avatar->id);
     }
 
     /**
@@ -521,5 +483,4 @@ class avatar_info implements renderable, templatable {
 
         return null;
     }
-
 }

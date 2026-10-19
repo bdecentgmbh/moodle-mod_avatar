@@ -26,19 +26,24 @@
  * Define the complete avatar structure for backup, with file and id annotations
  */
 class backup_avatar_activity_structure_step extends backup_activity_structure_step {
-
     /**
-     * Define the structure for the avatar activity
+     * Defines the structure of the backup of an avatar activity.
+     *
+     * The backup contains the avatars of the library the activity offers, so that a restore on another site can
+     * recreate them. Their texts and files are only included when the user who makes the backup may create
+     * avatars (manage the library); otherwise only their names and idnumbers, to map them on restore.
      *
      * @return backup_nested_element
      */
     protected function define_structure() {
-        global $DB;
+        global $CFG, $DB;
+        require_once($CFG->dirroot . '/mod/avatar/lib.php');
 
-        // To know if we are including userinfo.
         $userinfo = $this->get_setting_value('userinfo');
+        $syscontext = \core\context\system::instance();
+        $backupuserid = (int) $DB->get_field('backup_controllers', 'userid', ['backupid' => $this->get_backupid()]);
+        $withlibrary = $backupuserid && has_capability('mod/avatar:create', $syscontext, $backupuserid);
 
-        // Define each element separated.
         $avatar = new backup_nested_element('avatar', ['id'], [
             'course', 'name', 'intro', 'introformat', 'displaymode',
             'headercontent', 'headercontentformat', 'footercontent', 'footercontentformat',
@@ -52,114 +57,76 @@ class backup_avatar_activity_structure_step extends backup_activity_structure_st
             'variants', 'variantimages', 'thumbnails', 'animationstates',
             'timecreated', 'timemodified', 'usermodified', 'status', 'archived', 'timearchived']);
 
-        // Define avatar tags.
-        $select = self::get_avatar_tags_fields();
-        $tagfields = array_keys($select);
-        array_shift($tagfields);
         $avatartags = new backup_nested_element('avatar_tags');
-        $avatartag = new backup_nested_element('avatar_tag', ['ti_id'], $tagfields);
+        $avatartag = new backup_nested_element('avatar_tag', ['ti_id'], ['ti_itemid', 't_name', 't_rawname']);
 
-        // Define user avatars.
         $useravatars = new backup_nested_element('user_avatars');
         $useravatar = new backup_nested_element('user_avatar', ['id'], [
             'userid', 'avatarid', 'variant', 'cmid', 'isprimary', 'timecollected', 'timemodified']);
 
-        // Build the tree.
         $avatar->add_child($avatars);
         $avatars->add_child($avataritem);
-
         $avatar->add_child($avatartags);
         $avatartags->add_child($avatartag);
-
         $avatar->add_child($useravatars);
         $useravatars->add_child($useravatar);
 
-        // Define sources.
         $avatar->set_source_table('avatar', ['id' => backup::VAR_ACTIVITYID]);
 
-        // Get only avatars used in this module.
-        $avataritem->set_source_sql(
-            "SELECT al.*
-             FROM {avatar_list} al WHERE al.archived = 0",
-            [backup::VAR_ACTIVITYID]
-        );
+        // The avatars the activity offers, and those collected in it.
+        $instance = $DB->get_record('avatar', ['id' => $this->task->get_activityid()], '*', MUST_EXIST);
+        $avatarids = array_keys(\mod_avatar\activity::get_avatars($instance));
+        $avatarids = array_merge($avatarids, $DB->get_fieldset_select(
+            'avatar_user',
+            'DISTINCT avatarid',
+            'cmid = :cmid',
+            ['cmid' => $this->task->get_moduleid()]
+        ));
+        $avatarids = array_values(array_unique(array_map('intval', $avatarids))) ?: [0];
+        $idlist = implode(',', $avatarids);
 
-        // Add tags for each avatar.
-        // Final list of select columns, convert to sql mode.
-        $select = implode(', ', array_values($select));
-        $avatartag->set_source_sql(
-            "SELECT $select
-             FROM {tag_instance} ti
-             JOIN {tag} t ON ti.tagid = t.id
-             WHERE ti.itemtype = 'avatar'
-             AND ti.component = 'mod_avatar'", []
-        );
-
-        // Include user avatars if user info is included.
-        if ($userinfo) {
-            $useravatar->set_source_sql(
-                "SELECT * FROM {avatar_user}
-                 WHERE avatarid = ? AND cmid = ?",
-                [backup::VAR_PARENTID, backup::VAR_ACTIVITYID]
-            );
+        if ($withlibrary) {
+            $avataritem->set_source_sql("SELECT * FROM {avatar_list} WHERE id IN ($idlist)", []);
+        } else {
+            $avataritem->set_source_sql("SELECT id, name, idnumber, variants, status, archived, timecreated, timemodified
+                                           FROM {avatar_list} WHERE id IN ($idlist)", []);
         }
 
-        // Define id annotations.
-        $useravatar->annotate_ids('user', 'userid');
-        $avataritem->annotate_ids('user', 'usermodified');
+        $avatartag->set_source_sql(
+            "SELECT ti.id AS ti_id, ti.itemid AS ti_itemid, t.name AS t_name, t.rawname AS t_rawname
+               FROM {tag_instance} ti
+               JOIN {tag} t ON t.id = ti.tagid
+              WHERE ti.component = 'mod_avatar' AND ti.itemtype = 'avatar' AND ti.itemid IN ($idlist)",
+            []
+        );
 
-        // Define file annotations.
+        if ($userinfo) {
+            $useravatar->set_source_sql("SELECT * FROM {avatar_user} WHERE cmid = ?", [backup::VAR_MODID]);
+        }
+
+        $useravatar->annotate_ids('user', 'userid');
+        if ($withlibrary) {
+            $avataritem->annotate_ids('user', 'usermodified');
+        }
+
         $avatar->annotate_files('mod_avatar', 'intro', null);
         $avatar->annotate_files('mod_avatar', 'headercontent', null);
         $avatar->annotate_files('mod_avatar', 'footercontent', null);
         $avatar->annotate_files('mod_avatar', 'emptystate', null);
 
-        // Annotate all avatar file areas.
-        $syscontext = context_system::instance();
-        $avataritem->annotate_files('mod_avatar', 'previewimage', null, $syscontext->id);
-        $avataritem->annotate_files('mod_avatar', 'additionalmedia', null, $syscontext->id);
-        $avataritem->annotate_files('mod_avatar', 'description', null, $syscontext->id);
-        $avataritem->annotate_files('mod_avatar', 'secretinfo', null, $syscontext->id);
-
-        // Annotate all variant-related file areas.
-        for ($i = 1; $i <= 10; $i++) {
-            $avataritem->annotate_files('mod_avatar', "avatarimage{$i}", null, $syscontext->id);
-            $avataritem->annotate_files('mod_avatar', "avatarthumbnail{$i}", null, $syscontext->id);
-            $avataritem->annotate_files('mod_avatar', "animationstates{$i}", null, $syscontext->id);
+        if ($withlibrary) {
+            foreach (avatar_get_library_fileareas() as $area) {
+                if ($area !== 'tagimages') {
+                    $avataritem->annotate_files('mod_avatar', $area, 'id', $syscontext->id);
+                }
+            }
+            $avataritem->annotate_files('mod_avatar', 'secretinfo', 'id', $syscontext->id);
         }
 
-        // Add subplugin information.
+        // Data of the addons (activity and avatars).
         $this->add_subplugin_structure('avataraddon', $avatar, true);
         $this->add_subplugin_structure('avataraddon', $avataritem, true);
 
-        // Return the root element (avatar), wrapped into standard activity structure.
         return $this->prepare_activity_structure($avatar);
-    }
-
-    /**
-     * Get the list of avatar tags fields.
-     *
-     * @return array
-     */
-    public static function get_avatar_tags_fields() {
-        global $DB;
-
-        // Get the list of alias tags for each avatar.
-        $tables = [
-            'ti' => $DB->get_columns('tag_instance'),
-            't' => $DB->get_columns('tag'),
-        ];
-
-        $select['ti_id'] = 'ti.id AS id'; // Set the schdule id as unique column.
-        foreach ($tables as $prefix => $table) {
-            $columns = array_keys($table);
-            foreach ($columns as $key => $value) {
-                $key = $prefix.'_'.$value;
-                $value = "$prefix.$value AS ".$prefix."_$value";
-                $select[$key] = $value;
-            }
-        }
-
-        return $select;
     }
 }

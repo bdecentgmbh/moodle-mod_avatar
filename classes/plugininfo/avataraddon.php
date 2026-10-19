@@ -24,16 +24,20 @@
 
 namespace mod_avatar\plugininfo;
 
-use avataraddon_pro\avatar;
 use core\plugininfo\base;
 
 /**
- * Avatar addon subplugin info class.
+ * Subplugin type avataraddon: addons that extend the avatar activity (in mod/avatar/addon).
+ *
+ * Addons extend mod_avatar through the hooks in mod_avatar\hook; mod_avatar does not know them.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class avataraddon extends base {
-
     /**
-     * Returns the information about plugin availability
+     * Addons are always enabled once installed.
      *
      * @return bool
      */
@@ -42,7 +46,7 @@ class avataraddon extends base {
     }
 
     /**
-     * Is the uninstallation allowed.
+     * Addons can be uninstalled.
      *
      * @return bool
      */
@@ -51,57 +55,39 @@ class avataraddon extends base {
     }
 
     /**
-     * Loads plugin settings to the settings tree.
+     * The name of the settings page of the addon.
+     *
+     * @return string
+     */
+    public function get_settings_section_name() {
+        return 'avataraddon_' . $this->name;
+    }
+
+    /**
+     * Adds the settings page of the addon (its settings.php) to the avatar category of the admin tree.
+     *
+     * The settings.php of an addon fills $settings (an admin_settingpage named after the addon). It may also
+     * add its own pages to $ADMIN below $parentnodename and set $settings to null.
      *
      * @param \part_of_admin_tree $adminroot
      * @param string $parentnodename
      * @param bool $hassiteconfig
      */
     public function load_settings(\part_of_admin_tree $adminroot, $parentnodename, $hassiteconfig) {
-        global $CFG, $USER, $DB, $OUTPUT, $PAGE;
+        global $CFG, $USER, $DB, $OUTPUT, $PAGE; // In case settings.php wants to refer to them.
+        $ADMIN = $adminroot; // May be used in settings.php.
+        $plugininfo = $this; // Also can be used inside settings.php.
 
-        $ADMIN = $adminroot;
-        $plugininfo = $this;
-
-        if (!$this->is_installed_and_upgraded()) {
-            return;
-        }
-
-        if (!$hassiteconfig || !file_exists($this->full_path('settings.php'))) {
+        if (!$this->is_installed_and_upgraded() || !$hassiteconfig || !file_exists($this->full_path('settings.php'))) {
             return;
         }
 
         $section = $this->get_settings_section_name();
-        $settings = new \admin_settingpage('avataraddon', $this->displayname, 'moodle/site:config', $this->is_enabled() === false);
+        $settings = new \admin_settingpage($section, $this->displayname, 'moodle/site:config', $this->is_enabled() === false);
         include($this->full_path('settings.php'));
 
         if ($settings) {
             $ADMIN->add($parentnodename, $settings);
         }
     }
-
-    /**
-     * Returns the Pro features utility instance.
-     *
-     * @return \avataraddon_pro\util|null
-     */
-    public static function pro_util() {
-
-        if (self::has_avataraddon_pro()) {
-            return new \avataraddon_pro\util();
-        }
-
-        return null;
-    }
-
-    /**
-     * Confirm the avataraddon_pro plugin is installed.
-     *
-     * @return bool
-     */
-    public static function has_avataraddon_pro() {
-        // ...TODO: use plugin manager to check the plugin installed.
-        return class_exists('avataraddon_pro\avatar');
-    }
-
 }

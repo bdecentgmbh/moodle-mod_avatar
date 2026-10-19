@@ -14,17 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace mod_avatar\hook;
+
 /**
- * Subplugins definition for the avatar module.
+ * Dispatched before an avatar is deleted from the avatar library, so plugins can delete their data of it.
  *
  * @package    mod_avatar
- * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-$subplugins = [
-    'avataraddon' => 'mod/avatar/addon',
-];
-
+#[\core\attribute\label('Allows plugins to delete their data of an avatar of the avatar library.')]
+#[\core\attribute\tags('mod_avatar', 'avatar')]
+final class before_avatar_deleted {
+    /**
+     * Creates the hook.
+     *
+     * @param \stdClass $avatar The avatar (record of avatar_list).
+     */
+    public function __construct(
+        /** @var \stdClass The avatar (record of avatar_list) */
+        public readonly \stdClass $avatar,
+    ) {
+    }
+}

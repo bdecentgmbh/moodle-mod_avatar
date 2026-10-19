@@ -26,235 +26,214 @@
  * Structure step to restore one avatar activity
  */
 class restore_avatar_activity_structure_step extends restore_activity_structure_step {
+    /** @var bool Whether the restoring user may create avatars in the library. */
+    protected $cancreateavatars = false;
 
-    /**
-     * @var array List of avatar items
-     */
-    public static $avatarslist = [];
+    /** @var array Tags of the avatars created by this restore: new avatar id => tag names. */
+    protected $createdtags = [];
 
     /**
      * Define the structure of the avatar activity, items and tags.
      *
-     * @return mixed
+     * @return array
      */
     protected function define_structure() {
+        $this->cancreateavatars = has_capability(
+            'mod/avatar:create',
+            \core\context\system::instance(),
+            $this->task->get_userid()
+        );
 
         $paths = [];
         $avatarpath = new restore_path_element('avatar', '/activity/avatar');
         $paths[] = $avatarpath;
-
-        $userinfo = $this->get_setting_value('userinfo');
-        $paths[] = new restore_path_element('avatar_item', '/activity/avatar/avatars/avatar_item');
+        $avataritempath = new restore_path_element('avatar_item', '/activity/avatar/avatars/avatar_item');
+        $paths[] = $avataritempath;
         $paths[] = new restore_path_element('avatar_tag', '/activity/avatar/avatar_tags/avatar_tag');
 
-        if ($userinfo) {
+        if ($this->get_setting_value('userinfo')) {
             $paths[] = new restore_path_element('avatar_user', '/activity/avatar/user_avatars/user_avatar');
         }
 
-        // Add paths for subplugin information.
+        // Data of the addons (activity and avatars).
         $this->add_subplugin_structure('avataraddon', $avatarpath);
+        $this->add_subplugin_structure('avataraddon', $avataritempath);
 
         return $this->prepare_activity_structure($paths);
     }
 
     /**
-     * Process the avatar activity.
+     * Restores the activity.
      *
      * @param array $data The data to process.
      */
     protected function process_avatar($data) {
         global $DB;
 
-        $data = (object)$data;
-        $oldid = $data->id;
+        $data = (object) $data;
         $data->course = $this->get_courseid();
-
         $data->timecreated = $this->apply_date_offset($data->timecreated);
         $data->timemodified = $this->apply_date_offset($data->timemodified);
 
-        // Insert the avatar record.
         $newitemid = $DB->insert_record('avatar', $data);
-
         $this->apply_activity_instance($newitemid);
     }
 
     /**
-     * Process the avatar item.
+     * Maps an avatar of the backup to the avatar library.
      *
-     * This function processes the avatar item data and checks if it already exists in the database.
-     * If it does not exist, it inserts a new record into the database.
-     * It also handles the mapping of the avatar item ID and restores related files.
+     * Existing avatars (same idnumber, or same name when the backup has no idnumber) are used as they are.
+     * Missing avatars are only created when the restoring user may create avatars, and only when the backup
+     * contains their content.
      *
      * @param array $data The data to process.
      */
     protected function process_avatar_item($data) {
         global $DB;
 
-        $data = (object)$data;
+        $data = (object) $data;
         $oldid = $data->id;
 
-        // Check if this avatar already exists (by idnumber or name).
-        $existing = false;
-
-        $likesql = $DB->sql_like('name', ':name', false);
-        $param = ['name' => $data->name];
-        $existing = $DB->get_record_select(
-            'avatar_list', "idnumber=:idnumber OR $likesql", $param + ['idnumber' => $data->idnumber], '*', IGNORE_MULTIPLE);
-
-        if (!$existing) {
-            $data->timecreated = $this->apply_date_offset($data->timecreated);
-            $data->timemodified = $this->apply_date_offset($data->timemodified);
-            $data->timearchived = $this->apply_date_offset($data->timearchived);
-
-            if (!empty($data->usermodified)) {
-                $data->usermodified = $this->get_mappingid('user', $data->usermodified);
-            }
-            $newitemid = $DB->insert_record('avatar_list', $data);
-
-            // Create a mapping of the avatar item.
-            $syscontext = context_system::instance();
-            $this->set_mapping('avatar_item', $oldid, $newitemid, true, $syscontext->id);
-
-            $this->add_related_files('mod_avatar', 'previewimage', 'avatar_item', $syscontext->id, $oldid);
-            $this->add_related_files('mod_avatar', 'additionalmedia', 'avatar_item', $syscontext->id, $oldid);
-            $this->add_related_files('mod_avatar', 'description', 'avatar_item', $syscontext->id, $oldid);
-            $this->add_related_files('mod_avatar', 'secretinfo', 'avatar_item', $syscontext->id, $oldid);
-
-            // Restore all variant-related files.
-            for ($i = 1; $i <= 10; $i++) {
-                $this->add_related_files('mod_avatar', "avatarimage{$i}", 'avatar_item', $syscontext->id, $oldid);
-                $this->add_related_files('mod_avatar', "avatarthumbnail{$i}", 'avatar_item', $syscontext->id, $oldid);
-                $this->add_related_files('mod_avatar', "animationstates{$i}", 'avatar_item', $syscontext->id, $oldid);
-            }
-
+        $idnumber = trim((string) ($data->idnumber ?? ''));
+        if ($idnumber !== '') {
+            $existing = $DB->get_record('avatar_list', ['idnumber' => $idnumber], 'id', IGNORE_MULTIPLE);
         } else {
-            // If avatar already exists, use its ID for mapping.
-            $this->set_mapping('avatar_item', $oldid, $existing->id);
+            $existing = $DB->get_record('avatar_list', ['name' => $data->name, 'idnumber' => ''], 'id', IGNORE_MULTIPLE);
         }
+        if ($existing) {
+            $this->set_mapping('avatar_item', $oldid, $existing->id);
+            return;
+        }
+
+        // Without its content (backup by a user who may not manage the library) the avatar cannot be recreated.
+        if (!$this->cancreateavatars || !property_exists($data, 'description')) {
+            return;
+        }
+
+        $record = new stdClass();
+        foreach (
+            ['name', 'idnumber', 'description', 'descriptionformat', 'internalnotes', 'secretinfo',
+                'secretinfoformat', 'variants', 'status', 'archived'] as $field
+        ) {
+            $record->$field = $data->$field ?? null;
+        }
+        $record->name = clean_param($record->name, PARAM_TEXT);
+        $record->idnumber = $idnumber;
+        $record->internalnotes = clean_param((string) $record->internalnotes, PARAM_TEXT);
+        $record->descriptionformat = (int) $record->descriptionformat;
+        $record->secretinfoformat = (int) $record->secretinfoformat;
+        $record->variants = max(1, min(\mod_avatar\avatar::MAX_VARIANTS, (int) $record->variants));
+        $record->status = (int) !empty($record->status);
+        $record->archived = (int) !empty($record->archived);
+        $record->timearchived = $record->archived ? time() : null;
+        $record->timecreated = time();
+        $record->timemodified = $record->timecreated;
+        $record->usermodified = $this->task->get_userid();
+
+        $newid = $DB->insert_record('avatar_list', $record);
+        $this->set_mapping('avatar_item', $oldid, $newid);
+        $this->set_mapping('avatar_item_created', $oldid, $newid);
+        $this->createdtags[$newid] = [];
     }
 
     /**
-     * Process the avatar tag.
+     * Collects the tags of the avatars created by this restore (they are added in after_execute()).
      *
-     * This function processes the avatar tag data and checks if it already exists in the database.
-     * If it does not exist, it inserts a new record into the database.
-     * It also handles the mapping of the avatar tag ID and restores related files.
+     * Supports the format of this version (ti_itemid, t_rawname) and of older versions (all tag fields).
      *
      * @param array $data The data to process.
      */
     protected function process_avatar_tag($data) {
-        global $DB;
-
-        $data = (object)$data;
-
-        // Get the new avatar item ID
-        // Filter the data based on the shortname.
-        $tag = array_filter((array) $data, function($key) {
-            return strpos($key, 't_') === 0;
-        }, ARRAY_FILTER_USE_KEY);
-
-        $taginstance = array_filter((array) $data, function($key) {
-            return strpos($key, 'ti_') === 0;
-        }, ARRAY_FILTER_USE_KEY);
-
-        $tagrecord = new stdclass();
-        foreach ($tag as $k => $value) {
-            $newkey = str_replace('t_', '', $k);
-            $tagrecord->$newkey = $value;
-        }
-
-        $taginstancerecord = new stdclass();
-        foreach ($taginstance as $k => $value) {
-            $newkey = str_replace('ti_', '', $k);
-            $taginstancerecord->$newkey = $value;
-        }
-
-        $avatarid = $this->get_mappingid('avatar_item', $taginstancerecord->itemid);
-
-        if (!$avatarid) {
-            return; // Skip if we don't have a valid avatar ID.
-        }
-
-        // Check if the tag exists.
-        $tag = $DB->get_record('tag', ['name' => $tagrecord->rawname]);
-
-        if (!$tag) {
-            $tag = (object)['id' => $DB->insert_record('tag', $tagrecord)];
-        }
-
-        // Check if the tag instance already exists.
-        $taginstance = $DB->get_record('tag_instance', [
-            'tagid' => $tag->id,
-            'itemtype' => 'avatar',
-            'itemid' => $avatarid,
-            'component' => 'mod_avatar',
-        ]);
-
-        if (!$taginstance) {
-            // Create the tag instance.
-            $taginstancedata = new stdClass();
-            $taginstancedata->tagid = $tag->id;
-            $taginstancedata->component = 'mod_avatar';
-            $taginstancedata->itemtype = 'avatar';
-            $taginstancedata->itemid = $avatarid;
-            $taginstancedata->contextid = context_system::instance()->id;
-            $taginstancedata->tiuserid = 0;
-            $taginstancedata->ordering = 0;
-            $taginstancedata->timecreated = time();
-            $taginstancedata->timemodified = time();
-            $DB->insert_record('tag_instance', $taginstancedata);
+        $newid = $this->get_mappingid('avatar_item_created', $data['ti_itemid'] ?? 0);
+        $rawname = trim((string) ($data['t_rawname'] ?? ''));
+        if ($newid && $rawname !== '') {
+            $this->createdtags[$newid][] = clean_param($rawname, PARAM_TAG);
         }
     }
 
     /**
-     * Process the avatar user.
-     *
-     * This function processes the avatar user data and checks if it already exists in the database.
-     * If it does not exist, it inserts a new record into the database.
-     * It also handles the mapping of the avatar user ID and restores related files.
+     * Restores the avatars users collected in the activity.
      *
      * @param array $data The data to process.
      */
     protected function process_avatar_user($data) {
         global $DB;
 
-        $data = (object)$data;
-        $oldid = $data->id;
-
+        $data = (object) $data;
         $data->avatarid = $this->get_mappingid('avatar_item', $data->avatarid);
         $data->userid = $this->get_mappingid('user', $data->userid);
-        $data->cmid = $this->task->get_moduleid();
-
-        // Only restore if we have valid mappings.
-        if ($data->avatarid && $data->userid) {
-            $data->timecollected = $this->apply_date_offset($data->timecollected);
-            $data->timemodified = $this->apply_date_offset($data->timemodified);
-
-            // Check if this user-avatar relationship already exists.
-            $existing = $DB->get_record('avatar_user', [
-                'userid' => $data->userid,
-                'avatarid' => $data->avatarid,
-                'cmid' => $data->cmid,
-            ]);
-
-            if (!$existing) {
-                $newitemid = $DB->insert_record('avatar_user', $data);
-                $this->set_mapping('avatar_user', $oldid, $newitemid);
-            }
+        if (
+            !$data->avatarid || !$data->userid
+                || $DB->record_exists('avatar_user', ['userid' => $data->userid, 'avatarid' => $data->avatarid])
+        ) {
+            return;
         }
+
+        $variants = (int) $DB->get_field('avatar_list', 'variants', ['id' => $data->avatarid]);
+        $record = (object) [
+            'userid' => $data->userid,
+            'avatarid' => $data->avatarid,
+            'variant' => max(1, min($variants ?: 1, (int) $data->variant)),
+            'cmid' => $this->task->get_moduleid(),
+            // A user has one primary avatar; a restored avatar only becomes primary if the user has none.
+            'isprimary' => (int) (!empty($data->isprimary)
+                && !$DB->record_exists('avatar_user', ['userid' => $data->userid, 'isprimary' => 1])),
+            'timecollected' => $this->apply_date_offset($data->timecollected),
+            'timemodified' => $this->apply_date_offset($data->timemodified),
+        ];
+        $DB->insert_record('avatar_user', $record);
     }
 
     /**
-     * Restore the avatar files.
-     *
-     * This function restores the avatar files after the activity has been restored.
-     * It adds related files for the avatar activity and its items.
+     * Restores the files of the activity, and the files and tags of the avatars created by this restore.
      */
     protected function after_execute() {
-        // Restore the avatar filemanager and editor files.
-        $this->add_related_files('mod_avatar', 'intro', $this->task->get_modulename());
-        $this->add_related_files('mod_avatar', 'headercontent', $this->task->get_modulename());
-        $this->add_related_files('mod_avatar', 'footercontent', $this->task->get_modulename());
-        $this->add_related_files('mod_avatar', 'emptystate', $this->task->get_modulename());
+        global $CFG;
+        require_once($CFG->dirroot . '/mod/avatar/lib.php');
+
+        foreach (['intro', 'headercontent', 'footercontent', 'emptystate'] as $area) {
+            $this->add_related_files('mod_avatar', $area, $area === 'intro' ? null : 'avatar');
+        }
+
+        if (!$this->createdtags) {
+            return;
+        }
+
+        $syscontext = \core\context\system::instance();
+        $oldsyscontextid = $this->task->get_info()->original_system_contextid;
+        $areas = array_merge(array_diff(avatar_get_library_fileareas(), ['tagimages']), ['secretinfo']);
+        foreach ($areas as $area) {
+            restore_dbops::send_files_to_pool(
+                $this->get_basepath(),
+                $this->get_restoreid(),
+                'mod_avatar',
+                $area,
+                $oldsyscontextid,
+                $this->task->get_userid(),
+                'avatar_item_created',
+                null,
+                $syscontext->id,
+                true
+            );
+        }
+
+        $fs = get_file_storage();
+        foreach ($this->createdtags as $newid => $tags) {
+            // Only images (and videos in the additional media) are allowed in the image areas.
+            foreach ($areas as $area) {
+                if (in_array($area, ['description', 'secretinfo'])) {
+                    continue;
+                }
+                $allowed = $area === 'additionalmedia' ? ['web_image', 'web_video'] : ['web_image'];
+                foreach ($fs->get_area_files($syscontext->id, 'mod_avatar', $area, $newid, 'id', false) as $file) {
+                    if (!file_mimetype_in_typegroup($file->get_mimetype(), $allowed)) {
+                        $file->delete();
+                    }
+                }
+            }
+            if ($tags) {
+                \core_tag_tag::set_item_tags('mod_avatar', 'avatar', $newid, $syscontext, array_unique($tags));
+            }
+        }
     }
 }

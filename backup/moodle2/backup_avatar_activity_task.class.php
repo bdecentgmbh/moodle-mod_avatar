@@ -30,7 +30,6 @@ require_once($CFG->dirroot . '/mod/avatar/backup/moodle2/backup_avatar_stepslib.
  * Provides the steps to perform one complete backup of the Avatar instance.
  */
 class backup_avatar_activity_task extends backup_activity_task {
-
     /**
      * Define specific settings for this activity.
      */
@@ -57,15 +56,15 @@ class backup_avatar_activity_task extends backup_activity_task {
         $base = preg_quote($CFG->wwwroot, "/");
 
         // Link to the list of avatars.
-        $search = "/(".$base."\/mod\/avatar\/index.php\?id\=)([0-9]+)/";
+        $search = "/(" . $base . "\/mod\/avatar\/index.php\?id\=)([0-9]+)/";
         $content = preg_replace($search, '$@AVATARINDEX*$2@$', $content);
 
         // Link to avatar view by moduleid.
-        $search = "/(".$base."\/mod\/avatar\/view.php\?id\=)([0-9]+)/";
+        $search = "/(" . $base . "\/mod\/avatar\/view.php\?id\=)([0-9]+)/";
         $content = preg_replace($search, '$@AVATARVIEWBYID*$2@$', $content);
 
         // Link to specific avatar view.
-        $search = "/(".$base."\/mod\/avatar\/view_avatar.php\?avatarid\=)([0-9]+)/";
+        $search = "/(" . $base . "\/mod\/avatar\/view_avatar.php\?avatarid\=)([0-9]+)/";
         $content = preg_replace($search, '$@AVATARVIEWBYAVATARID*$2@$', $content);
 
         return $content;

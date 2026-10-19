@@ -26,55 +26,31 @@ namespace mod_avatar\form;
 
 defined('MOODLE_INTERNAL') || die();
 
-use context_system;
-use mod_avatar\plugininfo\avataraddon;
+use mod_avatar\avatar;
+use mod_avatar\hook\avatar_form_validation;
+use mod_avatar\hook\extend_avatar_form;
 
-require_once("$CFG->libdir/formslib.php");
+require_once($CFG->libdir . '/formslib.php');
 
 /**
- * Avatar creation form.
+ * Form to create and edit an avatar of the avatar library.
+ *
+ * Custom data: avatarid (0 for a new avatar), context, maxbytes.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class avatar_form extends \moodleform {
-
     /**
-     * @var int Maximum file size for uploaded files.
-     */
-    protected $maxbytes;
-
-    /**
-     * @var int Maximum number of variants.
-     */
-    protected $maxvariants = 10;
-
-    /**
-     * Constructor
-     *
-     * @param string $action Form action URL.
-     * @param array $customdata Custom data for the form.
-     * @param string $method Form submission method (default: 'post').
-     * @param string $target Target for form submission.
-     * @param array $attributes Additional attributes for the form.
-     * @param bool $editable Whether the form is editable (default: true).
-     * @param array $ajaxformdata Data for AJAX form submission.
-     * @return void
-     */
-    public function __construct($action = null, $customdata = null, $method = 'post', $target = '',
-        $attributes = null, $editable = true, $ajaxformdata = null) {
-
-        $this->maxbytes = $customdata['maxbytes'] ?? 0;
-        parent::__construct($action, $customdata, $method, $target, $attributes, $editable, $ajaxformdata);
-    }
-
-    /**
-     * Form definition
+     * Form definition.
      */
     public function definition() {
-        global $CFG, $PAGE;
+        global $PAGE;
 
         $mform = $this->_form;
 
-        // Add hidden id field.
-        $mform->addElement('hidden', 'id');
+        $mform->addElement('hidden', 'id', $this->_customdata['avatarid'] ?? 0);
         $mform->setType('id', PARAM_INT);
 
         // General settings.
@@ -83,74 +59,118 @@ class avatar_form extends \moodleform {
         $mform->addElement('text', 'name', get_string('avatarname', 'mod_avatar'), ['size' => '64']);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
+        $mform->addRule('name', get_string('maximumchars', '', 255), 'maxlength', 255, 'client');
 
         $mform->addElement('text', 'idnumber', get_string('idnumber'), ['size' => '64']);
-        $mform->setType('idnumber', PARAM_RAW);
+        $mform->setType('idnumber', PARAM_RAW_TRIMMED);
+        $mform->addRule('idnumber', get_string('maximumchars', '', 100), 'maxlength', 100, 'client');
 
-        $mform->addElement('editor', 'description_editor',
-            get_string('description'), null, $this->get_description_editor_options());
+        $mform->addElement('editor', 'description_editor', get_string('description'), null, avatar::get_editor_options());
         $mform->setType('description_editor', PARAM_RAW);
 
         $mform->addElement('textarea', 'internalnotes', get_string('internalnotes', 'mod_avatar'), ['rows' => 3, 'cols' => 60]);
         $mform->setType('internalnotes', PARAM_TEXT);
 
-        $mform->addElement('editor', 'secretinfo_editor', get_string('secretinfo', 'mod_avatar'),
-            ['rows' => 3, 'cols' => 60], $this->get_description_editor_options(0));
-        $mform->setType('secretinfo', PARAM_TEXT);
+        $mform->addElement(
+            'editor',
+            'secretinfo_editor',
+            get_string('secretinfo', 'mod_avatar'),
+            ['rows' => 3],
+            avatar::get_editor_options(0)
+        );
+        $mform->setType('secretinfo_editor', PARAM_RAW);
+        $mform->addHelpButton('secretinfo_editor', 'secretinfo', 'mod_avatar');
 
         // Gallery.
         $mform->addElement('header', 'gallery', get_string('gallery', 'mod_avatar'));
 
-        $mform->addElement('filemanager', 'previewimage', get_string('previewimage', 'mod_avatar'), null,
-            ['maxbytes' => $this->maxbytes, 'accepted_types' => ['image']]);
+        $mform->addElement(
+            'filemanager',
+            'previewimage',
+            get_string('previewimage', 'mod_avatar'),
+            null,
+            avatar::get_filemanager_options('previewimage')
+        );
         $mform->addRule('previewimage', null, 'required', null, 'client');
 
-        $mform->addElement('filemanager', 'additionalmedia', get_string('additionalmedia', 'mod_avatar'), null,
-            ['maxbytes' => $this->maxbytes, 'accepted_types' => ['image', 'video']]);
+        $mform->addElement(
+            'filemanager',
+            'additionalmedia',
+            get_string('additionalmedia', 'mod_avatar'),
+            null,
+            avatar::get_filemanager_options('additionalmedia')
+        );
 
         // Media.
         $mform->addElement('header', 'media', get_string('media', 'mod_avatar'));
 
-        $variantoptions = range(1, $this->maxvariants);
-        $mform->addElement('select', 'variants',
-            get_string('variants', 'mod_avatar'), array_combine($variantoptions, $variantoptions));
+        $variantoptions = range(1, avatar::MAX_VARIANTS);
+        $mform->addElement(
+            'select',
+            'variants',
+            get_string('variants', 'mod_avatar'),
+            array_combine($variantoptions, $variantoptions)
+        );
         $mform->setDefault('variants', 1);
 
+        // Changing the number of variants reloads the form with the matching image fields.
         $mform->registerNoSubmitButton('updatevariants');
         $mform->addElement('submit', 'updatevariants', get_string('updatevariants', 'mod_avatar'), ['class' => 'd-none']);
+        $PAGE->requires->js_amd_inline("
+            const variants = document.querySelector('#id_variants');
+            if (variants) {
+                variants.addEventListener('change', () => document.querySelector('#id_updatevariants').click());
+            }");
 
         // Tags.
         $mform->addElement('tags', 'tags', get_string('tags'), ['component' => 'mod_avatar', 'itemtype' => 'avatar']);
         $mform->addHelpButton('tags', 'tags', 'mod_avatar');
-
-        // Add capability check for managing avatars.
-        if (!has_capability('mod/avatar:manage', context_system::instance())) {
-            $mform->disabledIf('coursecategories', 'id', 'eq', 0); // Disable for new avatars.
-            $mform->disabledIf('coursecategories', 'id', 'neq', 0); // Disable for existing avatars.
-        }
-
-        // Add custom javascript to handle variant length.
-        $PAGE->requires->js_amd_inline("
-            document.querySelector('select[name=\"variants\"]') !== null ? document.querySelector('select[name=\"variants\"]')
-                .onchange = (e) => document.querySelector('input[name=updatevariants]').click() : ''; "
-        );
     }
 
     /**
-     * Get description editor options.
-     *
-     * @param int $files Maximum number of files.
-     * @return array
+     * Adds the fields of the variants (for the selected number of variants) and the fields of the addons.
      */
-    public function get_description_editor_options($files = EDITOR_UNLIMITED_FILES) {
-        global $CFG;
-        return [
-            'maxfiles' => $files,
-            'maxbytes' => $this->maxbytes,
-            'trusttext' => false,
-            'return_types' => FILE_INTERNAL | FILE_EXTERNAL,
-            'context' => $this->_customdata['context'],
-        ];
+    public function definition_after_data() {
+        parent::definition_after_data();
+
+        $mform = $this->_form;
+        $variants = (int) ($mform->getElementValue('variants')[0] ?? 1);
+
+        for ($i = 1; $i <= min($variants, avatar::MAX_VARIANTS); $i++) {
+            $elements = [
+                $mform->createElement(
+                    'filemanager',
+                    "avatarimage{$i}",
+                    get_string('avatarimage', 'mod_avatar') . " {$i}",
+                    null,
+                    avatar::get_filemanager_options("avatarimage{$i}")
+                ),
+                $mform->createElement(
+                    'filemanager',
+                    "avatarthumbnail{$i}",
+                    get_string('avatarthumbnail', 'mod_avatar') . " {$i}",
+                    null,
+                    avatar::get_filemanager_options("avatarthumbnail{$i}")
+                ),
+                $mform->createElement(
+                    'filemanager',
+                    "animationstates{$i}",
+                    get_string('animationstates', 'mod_avatar') . " {$i}",
+                    null,
+                    avatar::get_filemanager_options("animationstates{$i}")
+                ),
+            ];
+            foreach ($elements as $element) {
+                $mform->insertElementBefore($element, 'tags');
+            }
+            $mform->addRule("avatarimage{$i}", get_string('required'), 'required', null, 'client');
+        }
+
+        \core\di::get(\core\hook\manager::class)->dispatch(
+            new extend_avatar_form($mform, (int) ($this->_customdata['avatarid'] ?? 0))
+        );
+
+        $this->add_action_buttons();
     }
 
     /**
@@ -161,63 +181,36 @@ class avatar_form extends \moodleform {
      * @return array
      */
     public function validation($data, $files) {
+        global $DB, $USER;
+
         $errors = parent::validation($data, $files);
 
-        // Validate preview image.
-        if (empty($data['previewimage'])) {
-            $errors['previewimage'] = get_string('required');
+        // The image fields must contain a file, not just a draft area.
+        $usercontext = \core\context\user::instance($USER->id);
+        $fs = get_file_storage();
+        $required = ['previewimage'];
+        for ($i = 1; $i <= min((int) $data['variants'], avatar::MAX_VARIANTS); $i++) {
+            $required[] = "avatarimage{$i}";
         }
-
-        // Validate avatar images for selected variants.
-        for ($i = 1; $i <= $data['variants']; $i++) {
-            $avatarimagekey = "avatarimage{$i}";
-            if (empty($data[$avatarimagekey])) {
-                $errors[$avatarimagekey] = get_string('required');
+        foreach ($required as $field) {
+            if (empty($data[$field]) || $fs->is_area_empty($usercontext->id, 'user', 'draft', $data[$field])) {
+                $errors[$field] = get_string('required');
             }
         }
 
-        return $errors;
-    }
-
-    /**
-     * Include variant related fields after form data is set.
-     *
-     * @return void
-     */
-    public function definition_after_data() {
-        parent::definition_after_data();
-
-        $mform = $this->_form;
-        $variants = $mform->getElementValue('variants');
-
-        if ($variants) {
-            $variants = $variants[0];
-            $list = [];
-
-            $fileoptions = ['maxbytes' => $this->maxbytes, 'accepted_types' => ['image'], 'maxfiles' => -1];
-            for ($i = 1; $i <= $this->maxvariants; $i++) {
-                if ($i <= $variants) {
-                    $list[] = &$mform->addElement('filemanager', "avatarimage{$i}",
-                        get_string('avatarimage', 'mod_avatar') . " {$i}", null, $fileoptions + ['maxfiles' => 1]);
-
-                    $mform->addRule("avatarimage{$i}", get_string('required'), 'required', null, 'client');
-
-                    $list[] = &$mform->addElement('filemanager', "avatarthumbnail{$i}",
-                        get_string('avatarthumbnail', 'mod_avatar') . " {$i}", null, $fileoptions + ['maxfiles' => 1]);
-
-                    $list[] = &$mform->addElement('filemanager', "animationstates{$i}",
-                        get_string('animationstates', 'mod_avatar') . " {$i}", null, $fileoptions );
-                }
-            }
-
-            foreach ($list as &$element) {
-                $mform->insertElementBefore($mform->removeElement($element->getName(), false), 'tags');
-            }
+        if (
+            $data['idnumber'] !== '' && $DB->record_exists_select(
+                'avatar_list',
+                'idnumber = :idnumber AND id <> :id',
+                ['idnumber' => $data['idnumber'], 'id' => (int) $data['id']]
+            )
+        ) {
+            $errors['idnumber'] = get_string('idnumberexists', 'mod_avatar');
         }
 
-        // Extend the avatar form fields from addon.
-        avataraddon::pro_util()?->avatar_form_definition_after_data($mform);
+        $hook = new avatar_form_validation($data, $files);
+        \core\di::get(\core\hook\manager::class)->dispatch($hook);
 
-        $this->add_action_buttons();
+        return array_merge($errors, $hook->get_errors());
     }
 }

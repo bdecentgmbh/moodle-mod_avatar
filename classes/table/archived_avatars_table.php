@@ -24,129 +24,79 @@
 
 namespace mod_avatar\table;
 
-use context_system;
-
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->libdir . '/tablelib.php');
-
 /**
- * Archived avatars table contents.
+ * The archived avatars of the library, on the Manage avatars page.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class archived_avatars_table extends \table_sql {
-
+class archived_avatars_table extends avatars_table {
     /**
-     * Context.
+     * The tab of the table.
      *
-     * @var context
+     * @return string
      */
-    protected $context;
-
-    /**
-     * Constructor
-     *
-     * @param int $uniqueid
-     */
-    public function __construct($uniqueid) {
-        parent::__construct($uniqueid);
-
-        // List of columns to show.
-        $columns = ['name', 'idnumber', 'description', 'timearchived', 'actions'];
-        $this->define_columns($columns);
-
-        // Titles of columns to show in header.
-        $headers = [
-            get_string('name'),
-            get_string('idnumber'),
-            get_string('description'),
-            get_string('timearchived', 'mod_avatar'),
-            get_string('actions'),
-        ];
-        $this->define_headers($headers);
-        $this->set_attribute('class', 'generaltable archived-avatars');
-        $this->no_sorting('actions');
-
-        // Set up the SQL for the table.
-        $this->context = context_system::instance();
+    protected function get_tab(): string {
+        return 'archive';
     }
 
     /**
-     * SEtup the sql to fetch the list of archived avatars table.
+     * The columns of the table.
+     *
+     * @return string[]
+     */
+    protected function get_table_columns(): array {
+        return [
+            'name' => get_string('name'),
+            'idnumber' => get_string('idnumber'),
+            'description' => get_string('description'),
+            'timearchived' => get_string('timearchived', 'mod_avatar'),
+            'actions' => get_string('actions'),
+        ];
+    }
+
+    /**
+     * Set up the SQL for the table.
      *
      * @param int $pagesize
      * @param bool $useinitialsbar
-     * @return void
      */
     public function query_db($pagesize, $useinitialsbar = true) {
-        // Set up the SQL for the table.
         $this->set_sql('*', '{avatar_list}', 'archived = 1');
-
         parent::query_db($pagesize, $useinitialsbar);
     }
 
     /**
-     * Name of the avatar.
+     * The time the avatar was archived.
      *
-     * @param object $values
-     * @return string Return name.
+     * @param \stdClass $row The avatar.
+     * @return string
      */
-    public function col_name($values) {
-        return format_string($values->name);
+    public function col_timearchived($row) {
+        return $row->timearchived ? userdate($row->timearchived) : '';
     }
 
     /**
-     * Format the description of avatar.
+     * Actions: restore, delete, and those of the addons.
      *
-     * @param object $values Avatar Record.
-     * @return string Return description.
+     * @param \stdClass $row The avatar.
+     * @return string
      */
-    public function col_description($values) {
-        $description = file_rewrite_pluginfile_urls(
-            $values->description, 'pluginfile.php', $this->context->id, 'mod_avatar', 'description', $values->id);
-        return \html_writer::div(format_text($description, $values->descriptionformat), 'avatar-description-table');
-    }
-
-    /**
-     * Time of the avatar archived in userdate format.
-     *
-     * @param object $values
-     * @return string Return formatted time archived.
-     */
-    public function col_timearchived($values) {
-        return userdate($values->timearchived);
-    }
-
-    /**
-     * Actions column, options to restore and delete the avatar.
-     *
-     * @param object $values REcord.
-     * @return string Return actions HTML.
-     */
-    public function col_actions($values) {
-        global $OUTPUT;
-
+    public function col_actions($row) {
         $actions = [];
-
-        $url = new \moodle_url('/mod/avatar/edit.php', ['id' => $values->id, 'sesskey' => sesskey()]);
-
         if (has_capability('mod/avatar:archive', $this->context)) {
-            $url->param('action', 'restore');
-            $actions[] = $OUTPUT->action_icon(
-                $url, new \pix_icon('t/restore', get_string('restore', 'mod_avatar')),
-                null, ['class' => 'action-restore action-icon']);
+            $actions[] = $this->action_icon($row, 'restore', 't/restore', get_string('restore', 'mod_avatar'));
         }
-
         if (has_capability('mod/avatar:delete', $this->context)) {
-            $url->param('action', 'delete');
-            if (class_exists('core\output\actions\confirm_action')) {
-                $confirmaction = new \core\output\actions\confirm_action(get_string('confirmdelete', 'mod_avatar'));
-            } else {
-                $confirmaction = new \confirm_action(get_string('confirmdelete', 'mod_avatar'));
-            }
-            $actions[] = $OUTPUT->action_icon(
-                $url, new \pix_icon('t/delete', get_string('delete')), $confirmaction, ['class' => 'action-delete action-icon']);
+            $actions[] = $this->action_icon(
+                $row,
+                'delete',
+                't/delete',
+                get_string('delete'),
+                get_string('confirmdelete', 'mod_avatar')
+            );
         }
-
-        return implode(' ', $actions);
+        return implode(' ', array_merge($actions, $this->get_addon_actions($row)));
     }
 }

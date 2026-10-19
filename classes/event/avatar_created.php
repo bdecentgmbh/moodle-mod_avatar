@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The mod_avatar avatar created event class.
  */
 class avatar_created extends \core\event\base {
-
     /**
      * Init method.
      *

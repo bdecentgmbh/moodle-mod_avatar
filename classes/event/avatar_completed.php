@@ -28,16 +28,15 @@ namespace mod_avatar\event;
  * The mod_avatar avatar completed event class.
  */
 class avatar_completed extends \core\event\base {
-
     /**
      * Init method.
      *
      * @return void
      */
     protected function init() {
-        $this->data['crud'] = 'r';
+        $this->data['crud'] = 'u';
         $this->data['edulevel'] = self::LEVEL_PARTICIPATING;
-        $this->data['objecttable'] = 'avatar_user';
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**
@@ -75,8 +74,8 @@ class avatar_completed extends \core\event\base {
      */
     protected function validate_data() {
         parent::validate_data();
-        if ($this->contextlevel != CONTEXT_MODULE) {
-            throw new \coding_exception('Context level must be CONTEXT_MODULE.');
+        if (!in_array($this->contextlevel, [CONTEXT_MODULE, CONTEXT_SYSTEM])) {
+            throw new \coding_exception('Context level must be CONTEXT_MODULE or CONTEXT_SYSTEM.');
         }
     }
 }

@@ -23,43 +23,25 @@
  */
 
 require_once('../../config.php');
-require_once(dirname(__FILE__).'/lib.php');
+require_once($CFG->dirroot . '/mod/avatar/lib.php');
 
-$id = optional_param('id', 0, PARAM_INT); // Course module ID.
+$id = required_param('id', PARAM_INT); // Course module ID.
 
-if ($id) {
-    $cm = get_coursemodule_from_id('avatar', $id, 0, false, MUST_EXIST);
-    $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
-    $avatarinstance = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
-} else {
-    throw new moodle_exception('emptycoursemodule', 'mod_avatar');
-}
+[$course, $cm] = get_course_and_cm_from_cmid($id, 'avatar');
+$avatarinstance = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
 
 require_login($course, true, $cm);
-
-// Capability checking.
-$modulecontext = context_module::instance($cm->id);
+$modulecontext = \core\context\module::instance($cm->id);
 require_capability('mod/avatar:view', $modulecontext);
 
-// Setup the page content.
 $PAGE->set_url('/mod/avatar/view.php', ['id' => $cm->id]);
-$PAGE->set_title(format_string($avatarinstance->name));
-$PAGE->set_context($modulecontext);
-
-// Limit the width of the avatar page.
+$PAGE->set_title(format_string($avatarinstance->name, true, ['context' => $modulecontext]));
+$PAGE->set_heading(format_string($course->fullname, true, ['context' => $modulecontext]));
 $PAGE->add_body_class('limitedwidth');
 
-// Trigger the avatar viewed event and completion view.
 avatar_view($avatarinstance, $course, $cm, $modulecontext);
 
-// Output starts here.
 echo $OUTPUT->header();
-
-// Display the avatar activity content.
-$renderer = $PAGE->get_renderer('mod_avatar');
-echo $renderer->display_avatar_activity($avatarinstance, $cm, $course);
-
+echo $PAGE->get_renderer('mod_avatar')->display_avatar_activity($avatarinstance, $cm, $course);
 $PAGE->requires->js_call_amd('mod_avatar/avatar_assign', 'pickAvatar', []);
-
-// Footer of the page.
 echo $OUTPUT->footer();

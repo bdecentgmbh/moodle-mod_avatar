@@ -35,7 +35,6 @@ require_once($CFG->dirroot . '/backup/util/helper/restore_moodlexml_parser_proce
  * Avatar management class.
  */
 class avatar_manager {
-
     /**
      * Get all active avatars.
      *
@@ -73,26 +72,20 @@ class avatar_manager {
         $avatarid = $DB->insert_record('avatar_list', $data);
 
         $data->id = $avatarid;
-
-        // Update avatar addon data.
-        \mod_avatar\plugininfo\avataraddon::pro_util()?->update_avatar_data($data);
-
-        $context = \context_system::instance();
+        $context = \core\context\system::instance();
 
         // Set tags for the new avatar.
         if (!empty($data->tags)) {
             \core_tag_tag::set_item_tags('mod_avatar', 'avatar', $avatarid, $context, $data->tags);
         }
 
-        // After successfully creating a new avatar instance.
-        $event = \mod_avatar\event\avatar_created::create([
+        \core\di::get(\core\hook\manager::class)->dispatch(new \mod_avatar\hook\after_avatar_saved($data, true));
+
+        \mod_avatar\event\avatar_created::create([
             'context' => $context,
             'objectid' => $avatarid,
-            'other' => [
-                'data' => $data,
-            ],
-        ]);
-        $event->trigger();
+            'other' => ['name' => $data->name],
+        ])->trigger();
 
         return $avatarid;
     }

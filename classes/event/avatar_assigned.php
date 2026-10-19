@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The mod_avatar avatar assigned event class.
  */
 class avatar_assigned extends \core\event\base {
-
     /**
      * Init method.
      *
@@ -37,7 +36,7 @@ class avatar_assigned extends \core\event\base {
     protected function init() {
         $this->data['crud'] = 'c';
         $this->data['edulevel'] = self::LEVEL_TEACHING;
-        $this->data['objecttable'] = 'avatar_user';
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**
@@ -78,8 +77,8 @@ class avatar_assigned extends \core\event\base {
      */
     protected function validate_data() {
         parent::validate_data();
-        if ($this->contextlevel != CONTEXT_MODULE && $this->contextlevel != CONTEXT_USER) {
-            throw new \coding_exception('Context level must be CONTEXT_MODULE.');
+        if (!in_array($this->contextlevel, [CONTEXT_MODULE, CONTEXT_USER, CONTEXT_SYSTEM])) {
+            throw new \coding_exception('Context level must be CONTEXT_MODULE, CONTEXT_USER or CONTEXT_SYSTEM.');
         }
         if (!isset($this->relateduserid)) {
             throw new \coding_exception('The \'relateduserid\' must be set.');

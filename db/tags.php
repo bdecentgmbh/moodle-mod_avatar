@@ -26,10 +26,10 @@ defined('MOODLE_INTERNAL') || die();
 $tagareas = [
 
     [
-        'itemtype' => 'avatar',     // Name of the avatar table.
+        'itemtype' => 'avatar', // Name of the avatar table.
         'component' => 'mod_avatar', // Component.
         'callback' => 'mod_avatar_get_tagged_avatars', // Callback function to search for tagged items.
-        'callbackfile' => '/mod/avatar/lib.php',       // File containing the callback function.
+        'callbackfile' => '/mod/avatar/lib.php', // File containing the callback function.
         'showstandard' => core_tag_tag::STANDARD_ONLY, // Show only standard tags.
     ],
 ];

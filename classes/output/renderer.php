@@ -24,118 +24,89 @@
 
 namespace mod_avatar\output;
 
-defined('MOODLE_INTERNAL') || die();
-
-use moodle_url;
-use html_writer;
-
-require_once($CFG->dirroot . '/mod/avatar/lib.php');
-
-if (class_exists('\core\output\renderer_base')) {
-    class_alias('\core\output\renderer_base', '\plugin_render_base', true);
-}
-
-use plugin_renderer_base as render;
+use core\output\plugin_renderer_base;
 
 /**
- * Renderer for mod_avatar.
+ * Renderer of mod_avatar.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class renderer extends render {
-
+class renderer extends plugin_renderer_base {
     /**
-     * Render the avatar management page.
+     * The avatars of an avatar activity.
      *
-     * @param \mod_avatar\output\manage_page $page
-     * @return string HTML
-     */
-    public function render_manage_page(\mod_avatar\output\manage_page $page) {
-        $data = $page->export_for_template($this);
-        return $this->render_from_template('mod_avatar/manage_page', $data);
-    }
-
-    /**
-     * Render a table of avatars.
-     *
-     * @param \table_sql $table
-     * @return string HTML
-     */
-    public function render_avatars_table(\table_sql $table) {
-        ob_start();
-        $table->out(10, true);
-        return ob_get_clean();
-    }
-
-    /**
-     * Display the avatar activity.
-     *
-     * @param object $avatarinstance The avatar cm instance.
-     * @param object $cm The course module
-     * @param object $course The course
+     * @param \stdClass $avatarinstance The activity instance.
+     * @param \stdClass|\cm_info $cm The course module.
+     * @param \stdClass $course The course.
      * @return string HTML
      */
     public function display_avatar_activity($avatarinstance, $cm, $course) {
-        $activity = new \mod_avatar\output\avatar_activity($avatarinstance, $cm, $course);
-        return $this->render($activity);
+        return $this->render(new avatar_activity($avatarinstance, $cm, $course));
     }
 
     /**
-     * Display the My Avatars page.
+     * The avatar collection of a user (My avatars page).
      *
-     * @param int|null $userid User ID (optional, defaults to current user)
+     * @param int $userid The user, the current user on the My avatars page.
      * @return string HTML
      */
-    public function display_my_avatars(?int $userid) {
-        global $DB, $USER;
+    public function display_my_avatars(int $userid) {
+        global $DB;
 
-        $userid = $userid ?: $USER->id;
-        // Fetch users avatars.
-        $avatars = $DB->get_records_sql(
-            "SELECT a.*, au.variant, au.isprimary
-            FROM {avatar_list} a
-            JOIN {avatar_user} au ON a.id = au.avatarid
-            WHERE au.userid = :userid
-            ORDER BY au.isprimary DESC, a.name ASC",
+        $records = $DB->get_records_sql(
+            "SELECT al.*, au.id AS useravatarid, au.variant AS uservariant, au.isprimary, au.cmid AS usercmid,
+                    au.timecollected, au.timemodified AS usertimemodified
+               FROM {avatar_list} al
+               JOIN {avatar_user} au ON au.avatarid = al.id
+              WHERE au.userid = :userid
+           ORDER BY au.isprimary DESC, al.name ASC",
             ['userid' => $userid]
         );
 
-        $data = [
-            'has_avatars' => !empty($avatars),
-            'avatars' => [],
-        ];
-
-        $useravatars = [];
-        $records = $DB->get_records('avatar_user', ['userid' => $userid]);
+        $context = \core\context\system::instance();
+        $canprofilesync = (bool) get_config('mod_avatar', 'profileimagesync');
+        $avatars = [];
         foreach ($records as $record) {
-            $useravatars[$record->avatarid] = $record;
-        }
+            $useravatar = (object) ['id' => $record->useravatarid, 'userid' => $userid, 'avatarid' => $record->id,
+                'variant' => $record->uservariant, 'isprimary' => $record->isprimary, 'cmid' => $record->usercmid,
+                'timecollected' => $record->timecollected, 'timemodified' => $record->usertimemodified];
+            $avatar = new \mod_avatar\avatar($record->id, $record, $useravatar);
+            $progress = $avatar->info->get_progress();
 
-        foreach ($avatars as $avatar) {
-            $avatarobj = new \mod_avatar\avatar($avatar->id, $avatar, $useravatars[$avatar->id] ?? []);
+            // Upgrades happen in the activity in which the avatar was collected.
+            $cmid = 0;
+            if ($progress['canupgrade'] && $record->usercmid) {
+                $cm = get_coursemodule_from_id('avatar', $record->usercmid, 0, false, IGNORE_MISSING);
+                if ($cm) {
+                    $cminfo = get_fast_modinfo($cm->course, $userid)->get_cm($cm->id);
+                    if ($cminfo->uservisible && has_capability('mod/avatar:upgrade', $cminfo->context, $userid)) {
+                        $cmid = $cminfo->id;
+                    }
+                }
+            }
 
-            $progress = $avatarobj->info->get_progress();
-            $cmid = isset($useravatars[$avatar->id]) ? $useravatars[$avatar->id]->cmid : 0;
-
-            // Export avatar info for template.
-            $infodata = $avatarobj->info->export_for_template($this);
-
-            $data['avatars'][] = [
-                'id' => $avatar->id,
-                'name' => format_text($avatar->name, FORMAT_HTML),
-                'previewimage' => $avatarobj->info->get_thumbnail_image_url(),
-                'variant' => $avatar->variant,
-                'max_variant' => $avatar->variants,
-                'description' => $infodata['description'],
-                'secretinfo' => $infodata['secretinfo'],
+            $avatars[] = [
+                'id' => $record->id,
+                'name' => format_string($record->name, true, ['context' => $context]),
+                'previewimage' => $avatar->info->get_thumbnail_image_url(),
+                'variant' => $record->uservariant,
+                'max_variant' => $record->variants,
                 'progress_indicators' => $progress['indicators'],
-                'canpick' => $progress['canpick'],
-                'canupgrade' => $progress['canupgrade'],
-                'isprimary' => $avatar->isprimary,
-                'cansetasprofilepic' => $progress['cansetaspic'],
-                'view_url' => new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $avatar->id]),
-                'setprofileurl' => new \moodle_url('/mod/avatar/myavatars.php', ['setasprimary' => 1, 'avatarid' => $avatar->id]),
+                'cmid' => $cmid,
+                'canupgrade' => (bool) $cmid,
+                'isprimary' => (bool) $record->isprimary,
+                'canprofilesync' => $canprofilesync,
+                'view_url' => (new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $record->id]))->out(false),
+                'setprimaryurl' => (new \moodle_url('/mod/avatar/myavatars.php'))->out(false),
+                'sesskey' => sesskey(),
             ];
         }
 
-        return $this->render_from_template('mod_avatar/myavatars', $data);
+        return $this->render_from_template('mod_avatar/myavatars', [
+            'has_avatars' => !empty($avatars),
+            'avatars' => $avatars,
+        ]);
     }
 }

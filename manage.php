@@ -22,80 +22,56 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-use mod_avatar\table\avatars_filterset;
-
 require_once('../../config.php');
-require_once($CFG->libdir.'/adminlib.php');
 
-require_login();
+require_login(null, false);
 
-if (is_siteadmin()) {
-    admin_externalpage_setup('manageavatars');
-}
-
-$context = context_system::instance();
-$pageurl = new moodle_url('/mod/avatar/manage.php');
+use mod_avatar\hook\extend_manage_avatars;
 
 $tab = optional_param('tab', 'active', PARAM_ALPHA);
+$tab = ($tab === 'archive') ? 'archive' : 'active';
 
-$PAGE->set_url($pageurl);
-$PAGE->set_context($context);
-$PAGE->set_title(get_string('manageavatars', 'mod_avatar'));
-$PAGE->set_heading(get_string('manageavatars', 'mod_avatar'));
+$pageurl = new moodle_url('/mod/avatar/manage.php');
+$context = \mod_avatar\util::setup_library_page(
+    new moodle_url($pageurl, ['tab' => $tab]),
+    get_string('manageavatars', 'mod_avatar')
+);
+require_capability('mod/avatar:overview', $context);
 
-// Check if the user has the capability to manage avatars.
-if (!has_capability('mod/avatar:overview', $context)) {
-    throw new \moodle_exception('nopermissions', 'error', '', get_string('manageavatars', 'mod_avatar'));
-}
-
-// Page renderer.
-$output = $PAGE->get_renderer('mod_avatar');
-
-// Print header.
 echo $OUTPUT->header();
 
-// Button to create a new avatar.
-$buttons = '';
+// Create avatar and the buttons of the addons (e.g. import).
+$buttons = [];
 if (has_capability('mod/avatar:create', $context)) {
-    $createurl = new moodle_url('/mod/avatar/edit.php', ['action' => 'create']);
-    $buttons = $OUTPUT->single_button($createurl, get_string('createavatar', 'mod_avatar'), 'get');
+    $buttons[] = new single_button(
+        new moodle_url('/mod/avatar/edit.php', ['action' => 'create']),
+        get_string('createavatar', 'mod_avatar'),
+        'get',
+        single_button::BUTTON_PRIMARY
+    );
 }
-
-// Load addtional buttons from the avatar addon pro renderer.
-// Buttons for create, import, export, and manage categories.
-$avatarrenderer = $PAGE->get_renderer('avataraddon_pro');
-$buttons = $avatarrenderer->render_additional_manage_avatar_buttons($context, $buttons);
-
-echo $OUTPUT->box($buttons, 'generalbox manage-avatar-buttons text-right');
+$hook = new extend_manage_avatars($context);
+\core\di::get(\core\hook\manager::class)->dispatch($hook);
+$buttons = array_merge($buttons, $hook->get_buttons());
+if ($buttons) {
+    echo html_writer::div(implode('', array_map([$OUTPUT, 'render'], $buttons)), 'manage-avatar-buttons mb-3');
+}
 
 // Active and archive tabs.
 $tabs = [
     new tabobject('active', new moodle_url($pageurl, ['tab' => 'active']), get_string('activeavatars', 'mod_avatar')),
     new tabobject('archive', new moodle_url($pageurl, ['tab' => 'archive']), get_string('archivedavatars', 'mod_avatar')),
 ];
-
 echo $OUTPUT->tabtree($tabs, $tab);
 
-$filterset = new avatars_filterset();
-
-if ($categoryid = optional_param('category', null, PARAM_INT)) {
-    $category = new \core_table\local\filter\integer_filter('category');
-    $category->add_filter_value($categoryid);
-    $filterset->add_filter($category);
-}
-
-// Archive table.
-if ($tab == 'archive') {
-    $table = new \mod_avatar\table\archived_avatars_table($context->id);
+if ($tab === 'archive') {
+    $table = new \mod_avatar\table\archived_avatars_table('mod_avatar_archived_avatars');
 } else {
-    // Active table.
-    $table = new \mod_avatar\table\active_avatars_table($context->id);
+    $table = new \mod_avatar\table\active_avatars_table('mod_avatar_active_avatars');
 }
-
-$table->define_baseurl($pageurl);
-$table->set_filterset($filterset);
+$table->define_baseurl(new moodle_url($pageurl, ['tab' => $tab]));
 $table->out(50, true);
 
-$PAGE->requires->js_call_amd('mod_avatar/avatar_manage', 'init', []);
+$PAGE->requires->js_call_amd('mod_avatar/avatar_manage', 'init', [$context->id]);
 
 echo $OUTPUT->footer();
