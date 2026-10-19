@@ -1,13 +1,11 @@
 <div class="mod_avatar {{#displaymodepage}}display-page{{/displaymodepage}}{{#displaymodeinline}}display-inline{{/displaymodeinline}} {{#inline_display}}mod-avatar-inline{{/inline_display}}">
-    {{#hasavatars}}
-    <div class="avatar-popover-container">
-        {{{avatar_popover}}}
-    </div>
     {{#headercontent}}
     <div class="avatar-header mb-4">
         {{{headercontent}}}
     </div>
     {{/headercontent}}
+
+    {{#hasavatars}}
     <div class="avatar-title-container">
         <h2 class="avatar-title">{{#str}}pickyouravatar, mod_avatar{{/str}}</h2>
         {{#has_availability_restriction}}
@@ -16,7 +14,7 @@
             {{#isavailable}}
             <p>{{availability_message}}</p>
             {{/isavailable}}
-                {{^isavailable}}
+                    {{^isavailable}}
             <p>{{#str}}limitreached, mod_avatar{{/str}}</p>
             {{/isavailable}}
         </div>
@@ -51,20 +49,20 @@
             <!-- Display the pick and upgrade for cm based instance only -->
             <div class="card-footer">
                 {{#isavailable}}
-                                {{#canpick}}
+                        {{#canpick}}
                 <button class="btn btn-primary collect-avatar" data-avatarid="{{id}}" data-cmid="{{cmid}}">
                     {{#str}}pick, mod_avatar{{/str}}
                 </button>
                 {{/canpick}}
 
-                                {{#canupgrade}}
+                        {{#canupgrade}}
                 <button class="btn btn-secondary upgrade-avatar ms-2" data-avatarid="{{id}}" data-cmid="{{cmid}}">
                     {{#str}}upgrade, mod_avatar{{/str}}
                 </button>
                 {{/canupgrade}}
-                            {{/isavailable}}
+                        {{/isavailable}}
 
-                            {{^isavailable}}
+                        {{^isavailable}}
                 <button
                     class="btn btn-secondary disabled readonly"
                     data-avatarid="{{id}}"

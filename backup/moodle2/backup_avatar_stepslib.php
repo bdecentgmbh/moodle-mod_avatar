@@ -128,6 +128,10 @@ class backup_avatar_activity_structure_step extends backup_activity_structure_st
             $avataritem->annotate_files('mod_avatar', "animationstates{$i}", null, $syscontext->id);
         }
 
+        // Add subplugin information.
+        $this->add_subplugin_structure('avataraddon', $avatar, true);
+        $this->add_subplugin_structure('avataraddon', $avataritem, true);
+
         // Return the root element (avatar), wrapped into standard activity structure.
         return $this->prepare_activity_structure($avatar);
     }

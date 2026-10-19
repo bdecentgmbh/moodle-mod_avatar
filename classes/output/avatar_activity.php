@@ -26,7 +26,7 @@ namespace mod_avatar\output;
 
 use renderable;
 use templatable;
-use core\output\renderer_base;
+use core\output\renderer_base as renderer;
 use mod_avatar\avatar;
 use moodle_url;
 
@@ -76,7 +76,7 @@ class avatar_activity implements renderable, templatable {
      * @param renderer_base $output
      * @return array
      */
-    public function export_for_template(renderer_base $output) {
+    public function export_for_template($output) {
         global $USER;
 
         // Get users current avatars and progress.
@@ -111,6 +111,9 @@ class avatar_activity implements renderable, templatable {
         ];
 
         $data['hasavatars'] = !empty($data['avatars']['avatars']);
+
+        // Load avatar activity template data.
+        \mod_avatar\plugininfo\avataraddon::pro_util()?->avatar_activity_templatedata($data, $this);
 
         return $data;
     }
@@ -210,7 +213,10 @@ class avatar_activity implements renderable, templatable {
      */
     public static function cm_avatar_available($cm, $userid = null) {
 
-        // Currently there is no conditions available.
+        // Load the avatar addon availability checks.
+        return \mod_avatar\plugininfo\avataraddon::pro_util()?->cm_avatar_available($cm, $userid);
+
+        // Currently there is no conditions implemented.
         return true;
     }
 }

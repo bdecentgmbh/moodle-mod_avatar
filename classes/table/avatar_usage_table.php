@@ -73,6 +73,13 @@ class avatar_usage_table extends \table_sql implements dynamic_table {
     protected $useravatar;
 
     /**
+     * User ID.
+     *
+     * @var int
+     */
+    protected $userid;
+
+    /**
      * Constructor
      *
      * @param string $uniqueid Unique id of table

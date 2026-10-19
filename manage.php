@@ -61,6 +61,11 @@ if (has_capability('mod/avatar:create', $context)) {
     $buttons = $OUTPUT->single_button($createurl, get_string('createavatar', 'mod_avatar'), 'get');
 }
 
+// Load addtional buttons from the avatar addon pro renderer.
+// Buttons for create, import, export, and manage categories.
+$avatarrenderer = $PAGE->get_renderer('avataraddon_pro');
+$buttons = $avatarrenderer->render_additional_manage_avatar_buttons($context, $buttons);
+
 echo $OUTPUT->box($buttons, 'generalbox manage-avatar-buttons text-right');
 
 // Active and archive tabs.
@@ -72,6 +77,12 @@ $tabs = [
 echo $OUTPUT->tabtree($tabs, $tab);
 
 $filterset = new avatars_filterset();
+
+if ($categoryid = optional_param('category', null, PARAM_INT)) {
+    $category = new \core_table\local\filter\integer_filter('category');
+    $category->add_filter_value($categoryid);
+    $filterset->add_filter($category);
+}
 
 // Archive table.
 if ($tab == 'archive') {

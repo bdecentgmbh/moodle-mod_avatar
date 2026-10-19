@@ -199,7 +199,7 @@ class behat_mod_avatar extends behat_base {
      */
     public function i_add_an_avatar_activity_to_course_with($coursename, TableNode $data) {
         $this->execute('behat_navigation::i_am_on_course_homepage_with_editing_mode_on', [$coursename]);
-        $this->execute('behat_course::i_add_to_course_section_and_i_fill_the_form_with', ['Avatar', $coursename, 1, $data]);
+        $this->execute('behat_course::i_add_to_course_section_and_i_fill_the_form_with', ['avatar', $coursename, 1, $data]);
     }
 
     /**
@@ -308,6 +308,14 @@ class behat_mod_avatar extends behat_base {
      * @Given /^I view my avatars$/
      */
     public function i_view_my_avatars() {
+        global $CFG;
+
+        if ($CFG->branch <= 404) {
+            $this->execute('behat_navigation::i_follow_in_the_user_menu', ['Profile']);
+            $this->execute('behat_general::i_click_on_in_the', ['My avatars', "link", "#page-content", 'css_element']);
+            return;
+        }
+
         $this->execute('behat_navigation::i_follow_in_the_user_menu', ['My avatars']);
     }
 
@@ -395,17 +403,6 @@ class behat_mod_avatar extends behat_base {
     public function i_should_see_additional_media_for_avatar($avatarname) {
         $this->execute('behat_general::should_exist',
             ['.avatar-media', 'css_element']);
-    }
-
-    /**
-     * Navigate to avatar report.
-     *
-     * @Given /^I navigate to avatar report for "(?P<activityname>(?:[^"]|\\")*)"$/
-     * @param string $activityname
-     */
-    public function i_navigate_to_avatar_report_for($activityname) {
-        $this->execute('behat_navigation::i_am_on_page_instance', [$activityname]);
-        $this->execute('behat_navigation::i_navigate_to_in_current_page_administration', ['Report']);
     }
 
     /**

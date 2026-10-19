@@ -43,6 +43,8 @@ class avatars_filterset extends filterset {
             'id' => integer_filter::class,
             'name' => string_filter::class,
             'idnumber' => string_filter::class,
+            'coursecategories' => integer_filter::class,
+            'cohorts' => integer_filter::class,
             'timecreated' => integer_filter::class,
             'timemodified' => integer_filter::class,
         ];

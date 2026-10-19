@@ -40,15 +40,19 @@ class restore_avatar_activity_structure_step extends restore_activity_structure_
     protected function define_structure() {
 
         $paths = [];
-        $userinfo = $this->get_setting_value('userinfo');
+        $avatarpath = new restore_path_element('avatar', '/activity/avatar');
+        $paths[] = $avatarpath;
 
-        $paths[] = new restore_path_element('avatar', '/activity/avatar');
+        $userinfo = $this->get_setting_value('userinfo');
         $paths[] = new restore_path_element('avatar_item', '/activity/avatar/avatars/avatar_item');
         $paths[] = new restore_path_element('avatar_tag', '/activity/avatar/avatar_tags/avatar_tag');
 
         if ($userinfo) {
             $paths[] = new restore_path_element('avatar_user', '/activity/avatar/user_avatars/user_avatar');
         }
+
+        // Add paths for subplugin information.
+        $this->add_subplugin_structure('avataraddon', $avatarpath);
 
         return $this->prepare_activity_structure($paths);
     }

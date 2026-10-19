@@ -74,7 +74,11 @@ class avatar_manager {
 
         $data->id = $avatarid;
 
+        // Update avatar addon data.
+        \mod_avatar\plugininfo\avataraddon::pro_util()?->update_avatar_data($data);
+
         $context = \context_system::instance();
+
         // Set tags for the new avatar.
         if (!empty($data->tags)) {
             \core_tag_tag::set_item_tags('mod_avatar', 'avatar', $avatarid, $context, $data->tags);
@@ -101,5 +105,16 @@ class avatar_manager {
      */
     public static function get_avatar($avatarid) {
         return new \mod_avatar\avatar($avatarid);
+    }
+
+    /**
+     * Verify the avatar is exists.
+     *
+     * @param int $avatarid
+     * @return bool
+     */
+    public static function is_avatar_exists($avatarid) {
+        global $DB;
+        return $DB->record_exists('avatar_list', ['id' => $avatarid]);
     }
 }

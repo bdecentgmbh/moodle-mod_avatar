@@ -106,7 +106,9 @@ class util {
         $records = $DB->get_records('avatar_user', ['userid' => $userid]);
         $avatars = [];
         foreach ($records as $record) {
-            $avatars[$record->avatarid] = new avatar($record->avatarid, null, $record);
+            if ($DB->record_exists('avatar_list', ['id' => $record->avatarid])) {
+                $avatars[$record->avatarid] = new avatar($record->avatarid, null, $record);
+            }
         }
         return $avatars;
     }

@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 $callbacks = [
     [
         'hook' => core_user\hook\extend_user_menu::class, // Extend the user menu and include my avatars.
-        'callback' => [\mod_avatar\util::class, 'include_myavatars_usermenu'],
+        'callback' => '\mod_avatar\util::include_myavatars_usermenu',
         'priority' => 500,
     ],
 ];

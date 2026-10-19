@@ -24,7 +24,6 @@
 
 namespace mod_avatar\table;
 
-use core\output\actions\confirm_action;
 use context_system;
 
 defined('MOODLE_INTERNAL') || die();
@@ -139,7 +138,11 @@ class archived_avatars_table extends \table_sql {
 
         if (has_capability('mod/avatar:delete', $this->context)) {
             $url->param('action', 'delete');
-            $confirmaction = new confirm_action(get_string('confirmdelete', 'mod_avatar'));
+            if (class_exists('core\output\actions\confirm_action')) {
+                $confirmaction = new \core\output\actions\confirm_action(get_string('confirmdelete', 'mod_avatar'));
+            } else {
+                $confirmaction = new \confirm_action(get_string('confirmdelete', 'mod_avatar'));
+            }
             $actions[] = $OUTPUT->action_icon(
                 $url, new \pix_icon('t/delete', get_string('delete')), $confirmaction, ['class' => 'action-delete action-icon']);
         }

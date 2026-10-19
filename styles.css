@@ -100,8 +100,8 @@ table img.avatar-preview-image {
 
 /* Avatar tabs styles */
 .mod_avatar .avatar-tabs button {
-      position: relative;
-      &:after {
+    position: relative;
+    &:after {
         content: "";
         position: absolute;
         bottom: -2px;
@@ -271,6 +271,7 @@ table img.avatar-preview-image {
         flex: 0 1 calc(50% - 1rem);
     }
 }
+
 @media (max-width: 575px) {
     .mod_avatar .avatar-gallery .gallery-block {
         flex-basis: 100%;
@@ -300,37 +301,40 @@ table img.avatar-preview-image {
     }
     .avatar-card {
         max-width: calc(33.333% - 15px);
-          flex: 0 1 calc(33.333% - 15px);
+        flex: 0 1 calc(33.333% - 15px);
     }
 }
 
 @media (max-width: 768px) {
-      .mod-avatar-inline .avatar-card {
+    .mod-avatar-inline .avatar-card {
         max-width: calc(50% - 15px);
         flex: 0 1 calc(50% - 15px);
-      }
+    }
 }
 
 @media (max-width: 480px) {
-      .mod-avatar-inline .avatar-card {
-         max-width: 100%;
+    .mod-avatar-inline .avatar-card {
+        max-width: 100%;
         flex: 0 1 100%;
-  }
+    }
 }
 
 /* Navbar avatar styles */
+.navbar-expand .navbar-nav .avatar-popover {
+    order: -1;
+}
 .navbar-avatar {
     margin-right: 10px;
     display: inline-block;
-      position: relative;
+    position: relative;
 }
 .avatar-wrapper {
-     cursor: pointer;
+    cursor: pointer;
 }
 .avatar-navbar {
-      width: 35px;
-      height: 35px;
-      object-fit: cover;
+    width: 35px;
+    height: 35px;
+    object-fit: cover;
 }
 .avatar-popover-content {
     min-width: 250px;
@@ -345,6 +349,7 @@ table img.avatar-preview-image {
     z-index: 1000;
 }
 .avatar-popover .avatar-list {
+    height: 100%;
     &:has(.primary-avatar):hover > .avatar-item {
         margin-left: -15px;
         display: flex;
@@ -353,6 +358,7 @@ table img.avatar-preview-image {
         }
     }
     .avatar-item {
+        height: 100%;
         transition: all .5s ease;
         &:not(.primary-avatar) {
             display: none;
@@ -361,8 +367,13 @@ table img.avatar-preview-image {
             order: 1;
         }
         &:hover {
-            transform: scale(1.4);
+            transform: scale(1.2);
             cursor: pointer;
+        }
+        a {
+            height: 100%;
+            display: inline-flex;
+            align-items: center;
         }
         img {
             border: 1px solid #ccc;
@@ -376,16 +387,16 @@ table img.avatar-preview-image {
     }
 }
 .avatar-thumbnail {
-      width: 40px;
-      height: 40px;
-      object-fit: cover;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
 }
 
 /* Popover region */
 .mod-avatar-popover-region {
-      float: right;
-      position: relative;
-      margin: 0 0.5rem;
+    float: right;
+    position: relative;
+    margin: 0 0.5rem;
     .popover-region-toggle {
         width: 35px;
         height: 35px;
@@ -412,7 +423,7 @@ table img.avatar-preview-image {
     }
     &.show .popover-region-container {
         visibility: visible;
-          opacity: 1;
+        opacity: 1;
     }
     .popover-region-header-container {
         padding: 0.75rem 1rem;
@@ -451,121 +462,121 @@ table img.avatar-preview-image {
 }
 
 .avatar-report-table {
-  width: 100%;
-  margin-bottom: 2rem;
+    width: 100%;
+    margin-bottom: 2rem;
 }
 
 .avatar-report-table .avatar-preview {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 50%;
-  display: block;
-  margin: 0 auto;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+    margin: 0 auto;
 }
 
 .avatar-report-table .avatar-name {
-  font-size: 0.875rem;
-  text-align: center;
-  margin-top: 0.5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: 0.875rem;
+    text-align: center;
+    margin-top: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .avatar-report-table .avatar-progress {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  margin-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 2px;
 }
 
 .avatar-report-table .progress-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  transition: background-color 0.2s ease-in-out;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease-in-out;
 }
 
 .avatar-report-table .progress-indicator.bg-success {
-  background-color: #22c55e;
+    background-color: #22c55e;
 }
 
 .avatar-report-table .progress-indicator.bg-secondary {
-  background-color: #e5e7eb;
+    background-color: #e5e7eb;
 }
 
 .avatar-report-table td {
-  vertical-align: middle;
-  text-align: center;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .avatar-report-table th {
-  text-align: center;
-  min-width: 120px;
+    min-width: 120px;
+    text-align: center;
 }
 
 .avatar-report-table th:first-child,
 .avatar-report-table td:first-child {
-  text-align: left;
+    text-align: left;
 }
 
 .avatar-report-table .btn {
-  white-space: nowrap;
+    white-space: nowrap;
 }
 
 /* Responsive styles */
 @media (max-width: 768px) {
-  .avatar-report-table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+    .avatar-report-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 /* Available avatars modal styles */
 .available-avatars-table .avatar-preview-image {
-  border-radius: 50%;
-  object-fit: cover;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .available-avatars-table .assign-avatar-btn {
-  min-width: 80px;
+    min-width: 80px;
 }
 
 /* Modal styles */
 #available-avatars-modal .modal-body {
-  max-height: calc(100vh - 210px);
-  overflow-y: auto;
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
 }
 
 #available-avatars-modal .table {
-  margin-bottom: 0;
+    margin-bottom: 0;
 }
 
 #available-avatars-modal .avatar-preview-cell {
-  width: 60px;
+    width: 60px;
 }
 
 #available-avatars-modal .actions-cell {
-  width: 100px;
-  text-align: center;
+    width: 100px;
+    text-align: center;
 }
 
 @media (max-width: 768px) {
-  #available-avatars-modal .modal-dialog {
-    margin: 10px;
-    width: auto;
-  }
+    #available-avatars-modal .modal-dialog {
+        width: auto;
+        margin: 10px;
+    }
 
-  #available-avatars-modal .table {
-    font-size: 14px;
-  }
+    #available-avatars-modal .table {
+        font-size: 14px;
+    }
 
-  #available-avatars-modal .avatar-preview-image {
-    width: 40px;
-    height: 40px;
-  }
+    #available-avatars-modal .avatar-preview-image {
+        width: 40px;
+        height: 40px;
+    }
 }
 
 /* Hide the admin settings alert on config setinitialavatar and userprofilefield without capabilities */
@@ -577,7 +588,8 @@ table img.avatar-preview-image {
 }
 #page-admin-mod-avatar-manage ul.avatar-usage-list {
     span.usage-item {
-        text-wrap: nowrap;
+        width: max-content;
+        display: inline-block;
     }
 
     list-style: circle;
@@ -587,10 +599,6 @@ table img.avatar-preview-image {
     max-width: 35%;
     width: 100%;
 }
-#page-admin-mod-avatar-manage table.avatars tr td.cell {
-    text-wrap: pretty;
-}
-
 
 #page-mod-avatar-view_avatar  .avatar-block .avatar-info-navigation {
     margin: 20px 5px;

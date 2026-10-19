@@ -30,6 +30,7 @@ use moodle_url;
 use html_writer;
 use context_system;
 use confirm_action;
+use mod_avatar\plugininfo\avataraddon;
 
 require_once($CFG->libdir . '/tablelib.php');
 
@@ -37,6 +38,8 @@ require_once($CFG->libdir . '/tablelib.php');
  * Active avatars table class.
  */
 class active_avatars_table extends \table_sql {
+
+    use \avataraddon_pro\table\trait_active_avatars_table;
 
     /**
      * @var context_system system context.
@@ -163,7 +166,10 @@ class active_avatars_table extends \table_sql {
                 $confirmaction, ['class' => 'action-archive action-icon']);
         }
 
-        return implode(' ', $actions);
+        // Include pro actions.
+        $actions[] = $this->avataraddon_avatar_table_action($row, $this->context, $url);
+
+        return implode(' ', array_filter($actions));
     }
 
     /**

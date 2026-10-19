@@ -215,6 +215,9 @@ class avatar_form extends \moodleform {
             }
         }
 
+        // Extend the avatar form fields from addon.
+        avataraddon::pro_util()?->avatar_form_definition_after_data($mform);
+
         $this->add_action_buttons();
     }
 }

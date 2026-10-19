@@ -109,6 +109,8 @@ if ($mform->is_cancelled()) {
         $avatardata = file_prepare_standard_editor($avatardata, 'secretinfo',
             $mform->get_description_editor_options(0), $context, 'mod_avatar', 'secretinfo', $avatardata->id);
 
+        \mod_avatar\plugininfo\avataraddon::pro_util()?->prepare_avatar_edit_data($avatardata, $context);
+
         $mform->set_data($avatardata);
     }
 }
@@ -151,6 +153,9 @@ if ($action && $id) {
             $avatar->delete();
             redirect(new moodle_url('/mod/avatar/manage.php'), get_string('avatardeleted', 'mod_avatar'));
             break;
+        default:
+            // Pro addon action.
+            mod_avatar\plugininfo\avataraddon::pro_util()?->manage_avatar_edit_action($action, $avatar, $context);
     }
 }
 

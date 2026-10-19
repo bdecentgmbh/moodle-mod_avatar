@@ -26,6 +26,8 @@ defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot.'/course/moodleform_mod.php');
 
+use mod_avatar\plugininfo\avataraddon;
+
 /**
  * Module instance settings form.
  */
@@ -110,6 +112,19 @@ class mod_avatar_mod_form extends moodleform_mod {
     }
 
     /**
+     * Add elements after data is set - Load pro fields.
+     *
+     * @return void
+     */
+    public function definition_after_data() {
+        parent::definition_after_data();
+
+        $mform = $this->_form;
+        // Pro definition.
+        avataraddon::pro_util()?->mod_form_definition_after_data($mform);
+    }
+
+    /**
      * Add elements for setting the custom completion rules.
      *
      * @return array List of added element names, or names of wrapping group elements.
@@ -132,6 +147,22 @@ class mod_avatar_mod_form extends moodleform_mod {
     public function completion_rule_enabled($data) {
         $suffix = $this->get_suffix();
         return !empty($data['completionview' . $suffix]) || !empty($data['completioncollect' . $suffix]);
+    }
+
+    /**
+     * Validation on the settings form.
+     *
+     * @param array $data
+     * @param array $files
+     */
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+        // Get validation errors from addons.
+        $addonerrors = avataraddon::pro_util()?->mod_form_data_validation($data, $files);
+
+        $errors = array_merge($errors, $addonerrors);
+
+        return $errors;
     }
 
     /**
@@ -193,10 +224,10 @@ class mod_avatar_mod_form extends moodleform_mod {
 
         foreach ($fileareas as $area) {
             if ($this->current->instance) {
-
                 $draftitemid = file_get_submitted_draft_itemid($area);
                 $defaultvalues[$area . '_editor']['text'] = file_prepare_draft_area(
-                    $draftitemid, $this->context->id, 'mod_avatar', $area, 0, avatar_get_editor_options(), $defaultvalues[$area]);
+                    $draftitemid, $this->context->id, 'mod_avatar', $area,
+                    $defaultvalues['id'], avatar_get_editor_options(), $defaultvalues[$area]);
 
                 $defaultvalues[$area . '_editor']['format'] = $defaultvalues[$area . 'format'] ?? 0;
                 $defaultvalues[$area . '_editor']['itemid'] = $draftitemid;
@@ -206,6 +237,13 @@ class mod_avatar_mod_form extends moodleform_mod {
                 $defaultvalues[$area . '_editor']['format'] = editors_get_preferred_format();
                 $defaultvalues[$area . '_editor']['itemid'] = $draftitemid;
             }
+        }
+
+        // Include the pro features definition.
+        if (!empty($defaultvalues['id'])) {
+            $defaultvalues = (object) $defaultvalues;
+            \mod_avatar\plugininfo\avataraddon::pro_util()?->load_cmavatar_data($defaultvalues);
+            $defaultvalues = (array) $defaultvalues;
         }
     }
 }

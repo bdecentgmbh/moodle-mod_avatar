@@ -45,9 +45,10 @@ class custom_completion extends activity_custom_completion {
         switch ($rule) {
 
             case 'completioncollect':
+
                 $collected = $DB->record_exists('avatar_user', [
                     'userid' => $this->userid,
-                    'cmid' => $this->cm->instance,
+                    'cmid' => $this->cm->id,
                 ]);
                 return $collected ? COMPLETION_COMPLETE : COMPLETION_INCOMPLETE;
 

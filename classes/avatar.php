@@ -76,6 +76,9 @@ class avatar {
             $this->data = $DB->get_record('avatar_list', ['id' => $id], '*', MUST_EXIST);
         }
 
+        // Include addon data for avatar.
+        \mod_avatar\plugininfo\avataraddon::pro_util()?->load_cmavatar_data($this->data);
+
         if ($useravatar) {
             $this->get_info($useravatar);
         } else {
@@ -158,6 +161,9 @@ class avatar {
 
         $result = $DB->update_record('avatar_list', $data);
 
+        // Update avatar addon data.
+        \mod_avatar\plugininfo\avataraddon::pro_util()?->update_avatar_data($data);
+
         if ($result) {
             $this->data = $DB->get_record('avatar_list', ['id' => $this->id]);
         }
@@ -184,6 +190,7 @@ class avatar {
         global $DB;
         $this->data->archived = 1;
         $this->data->timearchived = time();
+        $this->data->timemodified = time();
         return $DB->update_record('avatar_list', $this->data);
     }
 
@@ -208,7 +215,29 @@ class avatar {
         global $DB;
         // Delete tags.
         \core_tag_tag::remove_all_item_tags('mod_avatar', 'avatar', $this->id);
-        return $DB->delete_records('avatar_list', ['id' => $this->id]);
+
+        if ($DB->delete_records('avatar_list', ['id' => $this->id])) {
+
+            $DB->delete_records('avatar_user', ['avatarid' => $this->id]);
+
+            // Delete files.
+            $fs = get_file_storage();
+            $fs->delete_area_files(\context_system::instance()->id, 'mod_avatar', 'previewimage', $this->id);
+            $fs->delete_area_files(\context_system::instance()->id, 'mod_avatar', 'additionalmedia', $this->id);
+
+            $variants = $this->variants ?: 10;
+            for ($i = 1; $i <= $variants; $i++) {
+                $fs->delete_area_files(\context_system::instance()->id, 'mod_avatar', "avatarimage{$i}", $this->id);
+                $fs->delete_area_files(\context_system::instance()->id, 'mod_avatar', "avatarthumbnail{$i}", $this->id);
+                $fs->delete_area_files(\context_system::instance()->id, 'mod_avatar', "animationstates{$i}", $this->id);
+            }
+
+            \mod_avatar\plugininfo\avataraddon::pro_util()?->delete_avatar($this->id);
+
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -337,6 +366,8 @@ class avatar {
     private function get_description_editor_options($context) {
         global $CFG;
 
+        require_once("$CFG->libdir/formslib.php");
+
         return [
             'maxfiles' => EDITOR_UNLIMITED_FILES,
             'maxbytes' => $CFG->maxbytes,
@@ -373,8 +404,12 @@ class avatar {
      * @return bool True if the avatar is available, false otherwise
      */
     public function is_avatar_available($userid, $cm = null) {
-        // No restriction conditions available.
-        return true;
+
+        $avatar = $this->data;
+        // Verify avatar available.
+        $result = \mod_avatar\plugininfo\avataraddon::pro_util()?->verify_avatar_available($avatar, $userid, $cm);
+
+        return $result;
     }
 
 }

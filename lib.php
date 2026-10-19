@@ -44,6 +44,8 @@ function avatar_supports($feature) {
             return true;
         case FEATURE_COMPLETION_HAS_RULES:
             return true;
+        case FEATURE_MOD_PURPOSE:
+            return MOD_PURPOSE_COLLABORATION;
         default:
             return null;
     }
@@ -61,20 +63,6 @@ function avatar_add_instance(stdClass $avatar, ?mod_avatar_mod_form $mform = nul
 
     $avatar->timecreated = time();
 
-    // Handle header content files.
-    $avatar = file_postupdate_standard_editor($avatar, 'headercontent', avatar_get_editor_options(),
-        context_module::instance($avatar->coursemodule), 'mod_avatar', 'headercontent', 0);
-    $avatar->headercontentformat = $avatar->headercontentformat ?? FORMAT_HTML;
-
-    // Handle footer content files.
-    $avatar = file_postupdate_standard_editor($avatar, 'footercontent', avatar_get_editor_options(),
-        context_module::instance($avatar->coursemodule), 'mod_avatar', 'footercontent', 0);
-    $avatar->footercontentformat = $avatar->footercontentformat ?? FORMAT_HTML;
-
-    $avatar = file_postupdate_standard_editor($avatar, 'emptystate', avatar_get_editor_options(),
-        context_module::instance($avatar->coursemodule), 'mod_avatar', 'emptystate', 0);
-    $avatar->emptystateformat = $avatar->emptystateformat ?? FORMAT_HTML;
-
     // Avatar selection type.
     if ($avatar->avatarselection == avatar::SELECTION_SPECIFIC) {
         $avatar->specifictags = trim($avatar->specifictags);
@@ -83,6 +71,26 @@ function avatar_add_instance(stdClass $avatar, ?mod_avatar_mod_form $mform = nul
     }
 
     $avatar->id = $DB->insert_record('avatar', $avatar);
+
+    // Handle header content files.
+    $avatar = file_postupdate_standard_editor($avatar, 'headercontent', avatar_get_editor_options(),
+        context_module::instance($avatar->coursemodule), 'mod_avatar', 'headercontent', $avatar->id);
+    $avatar->headercontentformat = $avatar->headercontentformat ?? FORMAT_HTML;
+
+    // Handle footer content files.
+    $avatar = file_postupdate_standard_editor($avatar, 'footercontent', avatar_get_editor_options(),
+        context_module::instance($avatar->coursemodule), 'mod_avatar', 'footercontent', $avatar->id);
+    $avatar->footercontentformat = $avatar->footercontentformat ?? FORMAT_HTML;
+
+    $avatar = file_postupdate_standard_editor($avatar, 'emptystate', avatar_get_editor_options(),
+        context_module::instance($avatar->coursemodule), 'mod_avatar', 'emptystate', $avatar->id);
+    $avatar->emptystateformat = $avatar->emptystateformat ?? FORMAT_HTML;
+
+    // Update the text editor.
+    $DB->update_record('avatar', $avatar);
+
+    // Handle addons data.
+    \mod_avatar\plugininfo\avataraddon::pro_util()?->update_cmavatar_data($avatar);
 
     $completionexpected = (!empty($avatar->completionexpected)) ? $avatar->completionexpected : null;
     \core_completion\api::update_completion_date_event($avatar->coursemodule, 'avatar', $avatar->id, $completionexpected);
@@ -127,6 +135,9 @@ function avatar_update_instance(stdClass $avatar, ?mod_avatar_mod_form $mform = 
     } else {
         $avatar->specifictags = '';
     }
+
+    // Handle addons data - PRO.
+    \mod_avatar\plugininfo\avataraddon::pro_util()?->update_cmavatar_data($avatar);
 
     $completionexpected = (!empty($avatar->completionexpected)) ? $avatar->completionexpected : null;
     \core_completion\api::update_completion_date_event($avatar->coursemodule, 'avatar', $avatar->id, $completionexpected);
@@ -405,4 +416,56 @@ function mod_avatar_output_fragment_avatar_usage($args) {
     $tablecontent = ob_get_clean();
 
     return $tablecontent;
+}
+
+/**
+ * Adds module specific settings to the settings block
+ *
+ * @param settings_navigation $settings The settings navigation object
+ * @param navigation_node $node The node to add module settings to
+ */
+function avatar_extend_settings_navigation(settings_navigation $settings, navigation_node $node) {
+    global $CFG;
+    if (mod_avatar\plugininfo\avataraddon::has_avataraddon_pro()) {
+        require_once($CFG->dirroot . '/mod/avatar/addon/pro/lib.php');
+        // Check if the user has the capability to add instances of the module.
+        avataraddon_pro_extend_navigation($settings, $node);
+    }
+}
+
+/**
+ * Defines my avatars nodes for my profile navigation tree.
+ *
+ * @param \core_user\output\myprofile\tree $tree Tree object
+ * @param stdClass $user user object
+ * @param bool $iscurrentuser is the user viewing profile, current user ?
+ * @param stdClass $course course object
+ *
+ * @return bool
+ */
+function mod_avatar_myprofile_navigation(core_user\output\myprofile\tree $tree, $user, $iscurrentuser, $course) {
+    global $PAGE;
+
+    // Get the miscellaneous category.
+    $expectedcategory = 'miscellaneous';
+    if (!array_key_exists('miscellaneous', $tree->__get('categories'))) {
+        // Create the category.
+        $categoryname = get_string('pluginname', 'mod_avatar');
+        $category = new core_user\output\myprofile\category('avatar', $categoryname, 'privacyandpolicies');
+        $tree->add_category($category);
+        $expectedcategory = 'avatar';
+    } else {
+        // Get the existing category.
+        $category = $tree->__get('categories')['miscellaneous'];
+    }
+
+    if ($iscurrentuser) {
+        $systemcontext = \context_system::instance();
+        if (has_capability('mod/avatar:view', $systemcontext)) {
+            $url = new \moodle_url('/mod/avatar/myavatars.php');
+            $avatarnode = new core_user\output\myprofile\node($expectedcategory, 'myavatars',
+                get_string('myavatars', 'mod_avatar'), null, $url);
+            $tree->add_node($avatarnode);
+        }
+    }
 }

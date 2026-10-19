@@ -30,6 +30,8 @@ defined('MOODLE_INTERNAL') || die();
 require_once("$CFG->libdir/externallib.php");
 require_once("$CFG->libdir/filelib.php");
 require_once($CFG->dirroot . '/user/lib.php');
+require_once($CFG->dirroot . '/lib/completionlib.php');
+require_once($CFG->dirroot . '/mod/avatar/lib.php');
 
 use mod_avatar\event\avatar_collected;
 use mod_avatar\event\avatar_upgraded;
@@ -125,6 +127,17 @@ class external extends external_api {
 
         if (get_config('mod_avatar', 'profileimagesync')) {
             self::set_avatar_as_profile_picture($userid, $avatar->id);
+        }
+
+        $cminfo = avatar_get_coursemodule_info($cm);
+        // Update completion state.
+        if (isset($cminfo->customdata['customcompletionrules'])
+            && !empty($cminfo->customdata['customcompletionrules']['completioncollect'])) {
+
+            $completion = new \completion_info(get_course($cm->course));
+            if ($completion->is_enabled($cm)) {
+                $completion->update_state($cm, COMPLETION_COMPLETE, $userid);
+            }
         }
 
         // Avatar collected successfully. notify the usr.
@@ -228,8 +241,16 @@ class external extends external_api {
             $event->trigger();
         }
 
-        if (get_config('mod_avatar', 'profileimagesync')) {
-            self::set_avatar_as_profile_picture($userid, $avatar->id, $useravatar->variant);
+        self::set_avatar_as_profile_picture($userid, $avatar->id, $useravatar->variant);
+
+        $cminfo = avatar_get_coursemodule_info($cm);
+        // Update completion state.
+        if (isset($cminfo->customdata['customcompletionrules'])
+            && !empty($cminfo->customdata['customcompletionrules']['completioncollect'])) {
+            $completion = new \completion_info(get_course($cm->course));
+            if ($completion->is_enabled($cm)) {
+                $completion->update_state($cm, COMPLETION_COMPLETE, $userid);
+            }
         }
 
         \core\notification::success(get_string('avatarupgraded', 'mod_avatar'));
@@ -259,8 +280,10 @@ class external extends external_api {
      * @param int $avatarid
      * @param int $variant
      */
-    private static function set_avatar_as_profile_picture($userid, $avatarid, $variant = 1) {
-        return \mod_avatar\util::update_user_profile_picture($userid, $avatarid, $variant);
+    public static function set_avatar_as_profile_picture($userid, $avatarid, $variant = 1) {
+        if (get_config('mod_avatar', 'profileimagesync')) {
+            return \mod_avatar\util::update_user_profile_picture($userid, $avatarid, $variant);
+        }
     }
 
     /**
@@ -275,4 +298,5 @@ class external extends external_api {
             throw new \moodle_exception('nopermissions', 'error', '', 'collect or upgrade avatar');
         }
     }
+
 }

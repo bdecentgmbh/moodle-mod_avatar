@@ -36,6 +36,11 @@ if ($ADMIN->fulltree) {
         get_string('profileimagesync_desc', 'mod_avatar'),
         0));
 
+    // Display mode page.
+    $settings->add(new admin_setting_configselect('mod_avatar/displaymode',
+        get_string('displaymode', 'mod_avatar'), get_string('displaymode_help', 'mod_avatar'), 0,
+        [0 => get_string('displaymodepage', 'mod_avatar'), 1 => get_string('displaymodeinline', 'mod_avatar')]));
+
     // Add tag images filemanager.
     $settings->add(new admin_setting_configstoredfile('mod_avatar/tagimages',
         get_string('tagimages', 'mod_avatar'),
@@ -53,3 +58,8 @@ $settings = null; // Reset the settings.
 // Add link to manage avatars page.
 $ADMIN->add('modavatar', new admin_externalpage('manageavatars',
     get_string('manageavatars', 'mod_avatar'), new \moodle_url('/mod/avatar/manage.php')));
+
+// Load all the dashaddon plugins settings pages.
+foreach (core_plugin_manager::instance()->get_plugins_of_type('avataraddon') as $plugin) {
+    $plugin->load_settings($ADMIN, 'modavatar', $hassiteconfig);
+}

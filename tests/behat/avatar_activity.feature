@@ -38,7 +38,7 @@ Feature: Using the avatar activity in a course
   Scenario: Add an avatar activity to a course
     When I log in as "teacher1"
     And I am on "Course 1" course homepage with editing mode on
-    And I add a "Avatar" activity to course "Course 1" section "1" and I fill the form with:
+    And I add a "avatar" activity to course "Course 1" section "1" and I fill the form with:
       | Avatar name     | Collect Avatars                       |
       | Description     | Collect cool avatars in this activity |
       | showdescription | 1                                     |
@@ -61,7 +61,7 @@ Feature: Using the avatar activity in a course
     And I follow "Collect Avatars"
     Then I should see "Cool Avatar"
     And I click on "Pick" "button" in the ".avatar-gallery" "css_element"
-    And I follow "My avatars" in the user menu
+    And I view my avatars
     And I should see "My avatars" in the "#page-header" "css_element"
     And I should see "Cool Avatar" in the ".avatar-gallery" "css_element"
 
