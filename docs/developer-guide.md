@@ -90,6 +90,9 @@ $callbacks = [
   placeholders out of source archives.
 - The CI of `moodle-mod_avatar` runs without the submodules; each addon repository runs its own CI
   against `mod_avatar`.
+- Releases are tagged `vX.Y-rN` (e.g. `v1.1-r1`). After publishing a release, the workflow *Stable
+  branches* of `moodle-mod_avatar` (started by hand with the tag) builds its `MOODLE_xxx_STABLE`
+  branches: the free plugin without the addon submodules, for sites that deploy from git.
 - The private `moodle-mod_avatar_pro` repository only holds a publish workflow. It builds the
   bundle (mod_avatar with all addons inlined) from a tag of `moodle-mod_avatar` and commits it to
   its `MOODLE_xxx_STABLE` branches, with a release ZIP.
