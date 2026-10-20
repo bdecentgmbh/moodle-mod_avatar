@@ -40,6 +40,11 @@ instance id.
   act for the given user. Collecting and upgrading trigger `avatar_collected` (or `avatar_assigned`
   when done for another user), `avatar_upgraded` and `avatar_completed`, sync the profile picture
   and update the completion of the activity.
+- To collect or upgrade for a user, use `collection::collect_if_available()` and
+  `collection::upgrade_if_available()`. They run the availability checks and the change under locks on
+  the activity, the avatar and the user, so that limits and capacities hold for concurrent requests;
+  they return null when the activity or the avatar is not available. Do not call them inside a
+  database transaction. `collect()` and `upgrade()` change the collection without any check.
 - `\mod_avatar\activity`: the avatars an activity offers (`get_avatars()`, `offers_avatar()`).
 - `\mod_avatar\local\usage`: where an avatar is used.
 - Web services `mod_avatar_collect_avatar` and `mod_avatar_upgrade_avatar` act for the current user

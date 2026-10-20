@@ -329,6 +329,67 @@ class avatar_info implements renderable, templatable {
     }
 
     /**
+     * The gallery images of several avatars, loaded together.
+     *
+     * For each avatar the same image as {@see get_thumbnail_image_url()} if the user collected it (the
+     * thumbnail of the collected variant, else its image), otherwise as {@see get_preview_image()}.
+     *
+     * @param int[] $avatarids The avatars.
+     * @param int[] $variants The collected variant, by avatar id, of the avatars the user collected.
+     * @return string[] Image URLs by avatar id.
+     */
+    public static function get_gallery_images(array $avatarids, array $variants): array {
+        global $DB, $OUTPUT;
+
+        $context = \core\context\system::instance();
+        $areas = ['previewimage'];
+        foreach (array_unique($variants) as $variant) {
+            array_push($areas, "avatarthumbnail{$variant}", "avatarimage{$variant}");
+        }
+        [$areasql, $areaparams] = $DB->get_in_or_equal($areas, SQL_PARAMS_NAMED, 'area');
+
+        // The image areas hold one file each. Chunks keep the number of query parameters low.
+        $files = [];
+        foreach (array_chunk($avatarids, 1000) as $chunk) {
+            [$itemsql, $itemparams] = $DB->get_in_or_equal($chunk, SQL_PARAMS_NAMED, 'item');
+            $records = $DB->get_records_select(
+                'files',
+                "contextid = :contextid AND component = :component AND filearea $areasql AND itemid $itemsql
+                 AND filename <> :dir",
+                ['contextid' => $context->id, 'component' => 'mod_avatar', 'dir' => '.'] + $areaparams + $itemparams,
+                'sortorder, id',
+                'id, filearea, itemid, filepath, filename'
+            );
+            foreach ($records as $record) {
+                $files[$record->itemid][$record->filearea] ??= $record;
+            }
+        }
+
+        $default = $OUTPUT->image_url('default_avatar', 'mod_avatar')->out(false);
+        $images = [];
+        foreach ($avatarids as $avatarid) {
+            $images[$avatarid] = $default;
+            $candidates = isset($variants[$avatarid])
+                ? ["avatarthumbnail{$variants[$avatarid]}", "avatarimage{$variants[$avatarid]}"]
+                : ['previewimage'];
+            foreach ($candidates as $area) {
+                if ($file = $files[$avatarid][$area] ?? null) {
+                    $images[$avatarid] = moodle_url::make_pluginfile_url(
+                        $context->id,
+                        'mod_avatar',
+                        $area,
+                        $avatarid,
+                        $file->filepath,
+                        $file->filename
+                    )->out(false);
+                    break;
+                }
+            }
+        }
+        return $images;
+    }
+
+    /**
      * Get the preview image for an avatar.
      *
      * @return string The URL of the preview image

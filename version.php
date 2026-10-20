@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_avatar';
-$plugin->version = 2026102000;
+$plugin->version = 2026102001;
 $plugin->release = '1.1';
 $plugin->requires = 2024100700; // Moodle 4.5.
 $plugin->supported = [405, 503];

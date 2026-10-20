@@ -83,16 +83,19 @@ class util {
     public static function get_user_avatars($userid) {
         global $DB;
 
-        $records = $DB->get_records_sql(
-            "SELECT au.*
-               FROM {avatar_user} au
-               JOIN {avatar_list} al ON al.id = au.avatarid
+        $records = $DB->get_records('avatar_user', ['userid' => $userid]);
+        $list = $DB->get_records_sql(
+            "SELECT al.*
+               FROM {avatar_list} al
+               JOIN {avatar_user} au ON au.avatarid = al.id
               WHERE au.userid = :userid",
             ['userid' => $userid]
         );
         $avatars = [];
         foreach ($records as $record) {
-            $avatars[$record->avatarid] = new avatar($record->avatarid, null, $record);
+            if (isset($list[$record->avatarid])) {
+                $avatars[$record->avatarid] = new avatar($record->avatarid, $list[$record->avatarid], $record);
+            }
         }
         return $avatars;
     }

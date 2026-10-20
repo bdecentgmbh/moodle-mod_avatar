@@ -56,6 +56,8 @@ final class activity_test extends \advanced_testcase {
      * The usage counts activities and courses offering an avatar, and users who collected it.
      */
     public function test_usage(): void {
+        global $DB;
+
         $this->resetAfterTest();
         $generator = $this->getDataGenerator()->get_plugin_generator('mod_avatar');
         $course1 = $this->getDataGenerator()->create_course();
@@ -73,5 +75,13 @@ final class activity_test extends \advanced_testcase {
         local\usage::reset_caches();
         $this->assertEquals(['activities' => 2, 'courses' => 1, 'users' => 1], local\usage::get_counts($dragon->id));
         $this->assertEquals(['activities' => 2, 'courses' => 2, 'users' => 0], local\usage::get_counts($troll->id));
+
+        // The counts of all avatars are loaded together and reloaded after collections change.
+        $queries = $DB->perf_get_queries();
+        local\usage::get_counts($dragon->id);
+        local\usage::get_counts($troll->id);
+        $this->assertEquals(0, $DB->perf_get_queries() - $queries);
+        collection::collect($troll, $user->id);
+        $this->assertEquals(1, local\usage::get_counts($troll->id)['users']);
     }
 }

@@ -138,16 +138,19 @@ class avatar_activity implements renderable, templatable {
         $canpick = has_capability('mod/avatar:collect', $this->cmcontext);
         $canupgrade = has_capability('mod/avatar:upgrade', $this->cmcontext);
 
+        $records = activity::get_avatars($this->cmavatar);
+        $variants = array_map(fn($avatar) => (int) $avatar->info->useravatar->variant, $useravatars);
+        $images = avatar_info::get_gallery_images(array_keys($records), array_intersect_key($variants, $records));
+
         $avatars = [];
-        foreach (activity::get_avatars($this->cmavatar) as $record) {
-            $picked = isset($useravatars[$record->id]);
+        foreach ($records as $record) {
             $avatar = $useravatars[$record->id] ?? new avatar($record->id, $record);
             $progress = $avatar->info->get_progress();
 
             $avatars[] = [
                 'id' => $record->id,
                 'name' => format_string($record->name, true, ['context' => \core\context\system::instance(), 'escape' => false]),
-                'previewimage' => $picked ? $avatar->info->get_thumbnail_image_url() : $avatar->info->get_preview_image(),
+                'previewimage' => $images[$record->id],
                 'progress_indicators' => $progress['indicators'],
                 'canpick' => $canpick && $progress['canpick'],
                 'canupgrade' => $canupgrade && $progress['canupgrade'],
