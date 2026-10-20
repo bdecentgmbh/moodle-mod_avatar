@@ -1,0 +1,61 @@
+name: Stable branches
+
+# Builds the MOODLE_xxx_STABLE branches from a release tag: the free plugin without the addon submodules, for sites
+# that deploy mod_avatar from git. Started by hand after publishing a release, like the bundle in
+# moodle-mod_avatar_pro.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Release tag to publish (e.g. v1.1-r1)"
+        required: true
+      branches:
+        description: "Stable branches to update"
+        required: true
+        default: "MOODLE_405_STABLE MOODLE_501_STABLE MOODLE_502_STABLE MOODLE_503_STABLE"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-branches
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check that the source is a tag
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REF" =~ ^v[0-9A-Za-z._-]+$ ]] || { echo "::error::Invalid tag: $SOURCE_REF"; exit 1; }
+          git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" "refs/tags/${SOURCE_REF}" >/dev/null ||
+            { echo "::error::${SOURCE_REF} is not a tag of this repository."; exit 1; }
+
+      - name: Check out the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          path: source
+          submodules: false
+          persist-credentials: false
+
+      - name: Check out the script
+        uses: actions/checkout@v4
+        with:
+          path: publisher
+          persist-credentials: false
+
+      - name: Build and push the stable branches
+        env:
+          SOURCE_DIR: ${{ github.workspace }}/source
+          SOURCE_REF: ${{ inputs.source_ref }}
+          BRANCHES: ${{ inputs.branches }}
+          TARGET_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          ACTOR: ${{ github.actor }}
+        run: bash publisher/.github/scripts/publish-stable-branches.sh
