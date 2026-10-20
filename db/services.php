@@ -25,19 +25,17 @@ defined('MOODLE_INTERNAL') || die();
 
 $functions = [
     'mod_avatar_collect_avatar' => [
-        'classname'     => 'mod_avatar\external',
-        'methodname'    => 'collect_avatar',
-        'description'   => 'Collect an avatar for the current user',
-        'type'          => 'write',
-        'capabilities'  => 'mod/avatar:collect',
-        'ajax'          => true,
+        'classname' => 'mod_avatar\\external\\collect_avatar',
+        'description' => 'The current user collects an avatar in an avatar activity.',
+        'type' => 'write',
+        'capabilities' => 'mod/avatar:collect',
+        'ajax' => true,
     ],
     'mod_avatar_upgrade_avatar' => [
-        'classname'     => 'mod_avatar\external',
-        'methodname'    => 'upgrade_avatar',
-        'description'   => 'Upgrade an avatar for the current user',
-        'type'          => 'write',
-        'capabilities'  => 'mod/avatar:upgrade',
-        'ajax'          => true,
+        'classname' => 'mod_avatar\\external\\upgrade_avatar',
+        'description' => 'The current user upgrades an avatar of their collection to its next variant.',
+        'type' => 'write',
+        'capabilities' => 'mod/avatar:upgrade',
+        'ajax' => true,
     ],
 ];

@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The mod_avatar avatar changed event class.
  */
 class avatar_changed extends \core\event\base {
-
     /**
      * Init method.
      *
@@ -36,8 +35,8 @@ class avatar_changed extends \core\event\base {
      */
     protected function init() {
         $this->data['crud'] = 'u';
-        $this->data['edulevel'] = self::LEVEL_PARTICIPATING;
-        $this->data['objecttable'] = 'avatar_user';
+        $this->data['edulevel'] = self::LEVEL_TEACHING;
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**
@@ -78,5 +77,23 @@ class avatar_changed extends \core\event\base {
         if ($this->contextlevel != CONTEXT_SYSTEM) {
             throw new \coding_exception('Context level must be CONTEXT_SYSTEM.');
         }
+    }
+
+    /**
+     * The avatar is restored as avatar_item (when the backup creates it).
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'avatar_list', 'restore' => 'avatar_item'];
+    }
+
+    /**
+     * The avatar in the other data.
+     *
+     * @return array|false
+     */
+    public static function get_other_mapping() {
+        return false;
     }
 }

@@ -30,7 +30,6 @@ require_once($CFG->dirroot . '/mod/avatar/backup/moodle2/restore_avatar_stepslib
  * Provides all the settings and steps to perform complete restore of the avatar activity.
  */
 class restore_avatar_activity_task extends restore_activity_task {
-
     /**
      * Define particular settings this activity can have.
      */
@@ -56,7 +55,7 @@ class restore_avatar_activity_task extends restore_activity_task {
         $contents = [];
 
         $contents[] = new restore_decode_content('avatar', ['intro', 'headercontent', 'footercontent', 'emptystate'], 'avatar');
-        $contents[] = new restore_decode_content('avatar_list', ['description', 'secretinfo'], null);
+        $contents[] = new restore_decode_content('avatar_list', ['description', 'secretinfo'], 'avatar_item_created');
 
         return $contents;
     }

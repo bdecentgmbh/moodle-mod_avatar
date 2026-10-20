@@ -32,45 +32,15 @@ use core_table\local\filter\string_filter;
  * Avatar usage table filterset.
  */
 class avatar_usage_table_filterset extends filterset {
-
     /**
-     * Get the required filters.
-     *
-     * The only required filter is the courseid filter.
-     *
-     * @return array.
-     */
-    public function get_required_filters(): array {
-
-        return [
-            'type' => string_filter::class,
-            'avatarid' => integer_filter::class,
-        ];
-    }
-
-    /**
-     * Get the optional filters.
-     *
-     * These are:
-     * - accesssince;
-     * - enrolments;
-     * - groups;
-     * - keywords;
-     * - country;
-     * - roles; and
-     * - status.
+     * The required filters: the avatar and the type of usage (activities, courses, users).
      *
      * @return array
      */
-    public function get_optional_filters(): array {
+    public function get_required_filters(): array {
         return [
-            'accesssince' => integer_filter::class,
-            'enrolments' => integer_filter::class,
-            'groups' => integer_filter::class,
-            'keywords' => string_filter::class,
-            'country' => string_filter::class,
-            'roles' => integer_filter::class,
-            'status' => integer_filter::class,
+            'type' => string_filter::class,
+            'avatarid' => integer_filter::class,
         ];
     }
 }

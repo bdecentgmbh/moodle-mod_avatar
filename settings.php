@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-use mod_avatar\task\collectavatar;
-
 defined('MOODLE_INTERNAL') || die;
 
 $ADMIN->add('modsettings', new admin_category('modavatar', new lang_string('pluginname', 'mod_avatar')));
@@ -31,13 +29,28 @@ $settings = new admin_settingpage('modsettingavatar', get_string('generalsetting
 
 if ($ADMIN->fulltree) {
     // Profile image sync settings.
-    $settings->add(new admin_setting_configcheckbox('mod_avatar/profileimagesync',
+    $settings->add(new admin_setting_configcheckbox(
+        'mod_avatar/profileimagesync',
         get_string('profileimagesync', 'mod_avatar'),
         get_string('profileimagesync_desc', 'mod_avatar'),
-        0));
+        0
+    ));
+
+    // Default display mode of new activities.
+    $settings->add(new admin_setting_configselect(
+        'mod_avatar/displaymode',
+        get_string('displaymode', 'mod_avatar'),
+        get_string('displaymode_desc', 'mod_avatar'),
+        \mod_avatar\activity::DISPLAY_PAGE,
+        [
+            \mod_avatar\activity::DISPLAY_PAGE => get_string('displaymodepage', 'mod_avatar'),
+            \mod_avatar\activity::DISPLAY_INLINE => get_string('displaymodeinline', 'mod_avatar'),
+        ]
+    ));
 
     // Add tag images filemanager.
-    $settings->add(new admin_setting_configstoredfile('mod_avatar/tagimages',
+    $settings->add(new admin_setting_configstoredfile(
+        'mod_avatar/tagimages',
         get_string('tagimages', 'mod_avatar'),
         get_string('tagimages_desc', 'mod_avatar'),
         'tagimages',
@@ -51,5 +64,14 @@ $ADMIN->add('modavatar', $settings);
 $settings = null; // Reset the settings.
 
 // Add link to manage avatars page.
-$ADMIN->add('modavatar', new admin_externalpage('manageavatars',
-    get_string('manageavatars', 'mod_avatar'), new \moodle_url('/mod/avatar/manage.php')));
+$ADMIN->add('modavatar', new admin_externalpage(
+    'manageavatars',
+    get_string('manageavatars', 'mod_avatar'),
+    new \moodle_url('/mod/avatar/manage.php'),
+    'mod/avatar:overview'
+));
+
+// The settings pages of the addons.
+foreach (core_plugin_manager::instance()->get_plugins_of_type('avataraddon') as $plugin) {
+    $plugin->load_settings($ADMIN, 'modavatar', $hassiteconfig);
+}

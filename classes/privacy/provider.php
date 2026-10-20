@@ -24,287 +24,220 @@
 
 namespace mod_avatar\privacy;
 
+use core\context;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
+use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\contextlist;
-use core_privacy\local\request\deletion_criteria;
-use core_privacy\local\request\helper;
+use core_privacy\local\request\transform;
+use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
-use context_module;
-use context_system;
 
 /**
- * Implementation of the privacy subsystem plugin provider for the avatar activity module.
+ * Privacy provider of the avatar activity.
+ *
+ * The avatar collection of a user (table avatar_user) belongs to the user, not to the activity in which an
+ * avatar was collected, so it is exported and deleted in the user context (like issued badges). The user who
+ * last changed an avatar of the library (avatar_list.usermodified) is stored in the system context; on
+ * deletion the reference is removed, the avatar stays.
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements
-    // This plugin stores personal data.
     \core_privacy\local\metadata\provider,
-    // This plugin is a core_user_data_provider.
+    \core_privacy\local\request\core_userlist_provider,
     \core_privacy\local\request\plugin\provider {
-
     /**
-     * Returns meta data about this system.
+     * The stored personal data.
      *
      * @param collection $collection The initialised collection to add items to.
-     * @return collection A listing of user data stored through this system.
+     * @return collection
      */
     public static function get_metadata(collection $collection): collection {
-        $collection->add_database_table(
-            'avatar_user',
-            [
-                'userid' => 'privacy:metadata:avatar_user:userid',
-                'avatarid' => 'privacy:metadata:avatar_user:avatarid',
-                'variant' => 'privacy:metadata:avatar_user:variant',
-                'cmid' => 'privacy:metadata:avatar_user:cmid',
-                'isprimary' => 'privacy:metadata:avatar_user:isprimary',
-                'timecollected' => 'privacy:metadata:avatar_user:timecollected',
-                'timemodified' => 'privacy:metadata:avatar_user:timemodified',
-            ],
-            'privacy:metadata:avatar_user'
-        );
+        $collection->add_database_table('avatar_user', [
+            'userid' => 'privacy:metadata:avatar_user:userid',
+            'avatarid' => 'privacy:metadata:avatar_user:avatarid',
+            'variant' => 'privacy:metadata:avatar_user:variant',
+            'cmid' => 'privacy:metadata:avatar_user:cmid',
+            'isprimary' => 'privacy:metadata:avatar_user:isprimary',
+            'timecollected' => 'privacy:metadata:avatar_user:timecollected',
+            'timemodified' => 'privacy:metadata:avatar_user:timemodified',
+        ], 'privacy:metadata:avatar_user');
 
-        // Add information about file storage.
-        $collection->add_subsystem_link('core_files', [], 'privacy:metadata:filepurpose');
+        $collection->add_database_table('avatar_list', [
+            'usermodified' => 'privacy:metadata:avatar_list:usermodified',
+            'timemodified' => 'privacy:metadata:avatar_list:timemodified',
+        ], 'privacy:metadata:avatar_list');
 
-        // Avatar uses tags.
-        $collection->add_subsystem_link('core_tag', [], 'privacy:metadata:tagpurpose');
+        // With profile picture sync, the image of the primary avatar becomes the profile picture of the user.
+        $collection->add_subsystem_link('core_user', [], 'privacy:metadata:profilepicture');
 
         return $collection;
     }
 
     /**
-     * Get the list of contexts that contain user information for the specified user.
+     * The contexts with data of a user.
      *
-     * @param int $userid The user to search.
-     * @return contextlist $contextlist A list of contexts.
+     * @param int $userid The user.
+     * @return contextlist
      */
     public static function get_contexts_for_userid(int $userid): contextlist {
         global $DB;
 
-        $contextlist = new \core_privacy\local\request\contextlist();
-
-        // The avatar_user data is related to the course module context level, so retrieve the users avatar contexts.
-        $sql = "SELECT c.id
-                FROM {context} c
-                INNER JOIN {course_modules} cm ON cm.id = c.instanceid AND c.contextlevel = :contextlevel
-                INNER JOIN {modules} m ON m.id = cm.module AND m.name = :modname
-                INNER JOIN {avatar_user} au ON au.cmid = cm.id
-                WHERE au.userid = :userid";
-
-        $params = [
-            'modname'       => 'avatar',
-            'contextlevel'  => CONTEXT_MODULE,
-            'userid'        => $userid,
-        ];
-
-        $contextlist->add_from_sql($sql, $params);
-
-        // Check for system-level avatar data.
-        $sql = "SELECT COUNT(au.id)
-                FROM {avatar_user} au
-                WHERE au.userid = :userid AND (au.cmid = 0 OR au.cmid IS NULL)";
-
-        if ($DB->count_records_sql($sql, ['userid' => $userid]) > 0) {
+        $contextlist = new contextlist();
+        if ($DB->record_exists('avatar_user', ['userid' => $userid])) {
+            $contextlist->add_user_context($userid);
+        }
+        if ($DB->record_exists('avatar_list', ['usermodified' => $userid])) {
             $contextlist->add_system_context();
         }
-
         return $contextlist;
     }
 
     /**
-     * Export all user data for the specified user, in the specified contexts.
+     * The users with data in a context.
      *
-     * @param approved_contextlist $contextlist The approved contexts to export information for.
+     * @param userlist $userlist The userlist with the context.
+     */
+    public static function get_users_in_context(userlist $userlist) {
+        $context = $userlist->get_context();
+        if ($context instanceof context\user) {
+            $userlist->add_from_sql(
+                'userid',
+                "SELECT userid FROM {avatar_user} WHERE userid = :userid",
+                ['userid' => $context->instanceid]
+            );
+        } else if ($context instanceof context\system) {
+            $userlist->add_from_sql('usermodified', "SELECT usermodified FROM {avatar_list} WHERE usermodified > 0", []);
+        }
+    }
+
+    /**
+     * Exports the data of a user.
+     *
+     * @param approved_contextlist $contextlist The approved contexts.
      */
     public static function export_user_data(approved_contextlist $contextlist) {
         global $DB;
 
-        if (empty($contextlist)) {
-            return;
-        }
-
-        $user = $contextlist->get_user();
-        $userid = $user->id;
-
-        // Export module context data.
+        $userid = $contextlist->get_user()->id;
         foreach ($contextlist->get_contexts() as $context) {
-            if ($context instanceof \context_module) {
-                self::export_avatar_data_for_module_context($context, $user);
-            } else if ($context instanceof \context_system) {
-                self::export_avatar_data_for_system_context($user);
+            if ($context instanceof context\user && $context->instanceid == $userid) {
+                $records = $DB->get_records_sql(
+                    "SELECT au.*, al.name
+                       FROM {avatar_user} au
+                       JOIN {avatar_list} al ON al.id = au.avatarid
+                      WHERE au.userid = :userid
+                   ORDER BY au.timecollected, au.id",
+                    ['userid' => $userid]
+                );
+                $avatars = [];
+                foreach ($records as $record) {
+                    $avatars[] = [
+                        'name' => format_string($record->name, true, ['context' => context\system::instance()]),
+                        'variant' => $record->variant,
+                        'isprimary' => transform::yesno($record->isprimary),
+                        'collectedin' => self::get_activity_name($record->cmid),
+                        'timecollected' => transform::datetime($record->timecollected),
+                        'timemodified' => transform::datetime($record->timemodified),
+                    ];
+                }
+                if ($avatars) {
+                    writer::with_context($context)->export_data(
+                        [get_string('myavatars', 'mod_avatar')],
+                        (object) ['avatars' => $avatars]
+                    );
+                }
+            } else if ($context instanceof context\system) {
+                $records = $DB->get_records('avatar_list', ['usermodified' => $userid], 'id', 'id, name, timemodified');
+                $avatars = array_map(fn($record) => [
+                    'name' => format_string($record->name, true, ['context' => $context]),
+                    'timemodified' => transform::datetime($record->timemodified),
+                ], array_values($records));
+                if ($avatars) {
+                    writer::with_context($context)->export_data(
+                        [get_string('manageavatars', 'mod_avatar')],
+                        (object) ['avatars' => $avatars]
+                    );
+                }
             }
         }
     }
 
     /**
-     * Export avatar data for a specific module context.
+     * Deletes the data of all users in a context.
      *
-     * @param \context_module $context The context to export data for
-     * @param \stdClass $user The user to export data for
-     */
-    protected static function export_avatar_data_for_module_context(\context_module $context, \stdClass $user) {
-        global $DB;
-
-        $userid = $user->id;
-        $cmid = $context->instanceid;
-
-        // Get user's avatar data for this instance.
-        $sql = "SELECT au.*, a.name as avatarname
-                FROM {avatar_user} au
-                JOIN {avatar} a ON a.id = au.avatarid
-                WHERE au.userid = :userid
-                AND au.cmid = :cmid";
-
-        $params = [
-            'userid' => $userid,
-            'cmid' => $cmid,
-        ];
-
-        $avatardata = $DB->get_records_sql($sql, $params);
-
-        if (!empty($avatardata)) {
-            $contextdata = helper::get_context_data($context, $user);
-
-            // Add avatar activity data.
-            $contextdata->avatars = [];
-            foreach ($avatardata as $record) {
-                $contextdata->avatars[] = [
-                    'name' => $record->avatarname,
-                    'variant' => $record->variant,
-                    'isprimary' => $record->isprimary ? true : false,
-                    'timecollected' => \core_privacy\local\request\transform::datetime($record->timecollected),
-                    'timemodified' => \core_privacy\local\request\transform::datetime($record->timemodified),
-                ];
-            }
-
-            writer::with_context($context)->export_data([], $contextdata);
-
-            // Export associated files.
-            helper::export_context_files($context, $user);
-        }
-    }
-
-    /**
-     * Export system-level avatar data for a user.
-     *
-     * @param \stdClass $user The user to export data
-     */
-    protected static function export_avatar_data_for_system_context(\stdClass $user) {
-        global $DB;
-
-        $userid = $user->id;
-        $systemcontext = \context_system::instance();
-
-        // Get all user's system-level avatar data (where cmid is 0 or NULL).
-        $sql = "SELECT au.*, a.name as avatarname
-                FROM {avatar_user} au
-                JOIN {avatar} a ON a.id = au.avatarid
-                WHERE au.userid = :userid
-                AND (au.cmid = 0 OR au.cmid IS NULL)";
-
-        $params = ['userid' => $userid];
-
-        $avatardata = $DB->get_records_sql($sql, $params);
-
-        if (!empty($avatardata)) {
-            $avatars = [];
-
-            foreach ($avatardata as $record) {
-                $avatars[] = [
-                    'name' => $record->avatarname,
-                    'variant' => $record->variant,
-                    'isprimary' => $record->isprimary ? true : false,
-                    'timecollected' => \core_privacy\local\request\transform::datetime($record->timecollected),
-                    'timemodified' => \core_privacy\local\request\transform::datetime($record->timemodified),
-                ];
-            }
-
-            $systemdata = [
-                'avatars' => $avatars,
-            ];
-
-            writer::with_context($systemcontext)->export_data(['mod_avatar'], $systemdata);
-
-            // Export any system-level files.
-            $fs = get_file_storage();
-            $systemfiles = $fs->get_area_files(
-                $systemcontext->id,
-                'mod_avatar',
-                'user_avatar',
-                $userid
-            );
-
-            if (!empty($systemfiles)) {
-                writer::with_context($systemcontext)
-                    ->export_area_files(['mod_avatar'], 'user_avatar', $userid);
-            }
-        }
-    }
-
-    /**
-     * Delete all data for all users in the specified context.
-     *
-     * @param context $context The specific context to delete data.
+     * @param \context $context The context.
      */
     public static function delete_data_for_all_users_in_context(\context $context) {
         global $DB;
 
-        if ($context instanceof \context_system) {
-            $DB->delete_records('avatar_user', ['cmid' => 0]);
-
-            // Delete system-level files.
-            $fs = get_file_storage();
-            $fs->delete_area_files($context->id, 'mod_avatar', 'user_avatar');
-
-            return;
+        if ($context instanceof context\user) {
+            $DB->delete_records('avatar_user', ['userid' => $context->instanceid]);
+        } else if ($context instanceof context\system) {
+            $DB->set_field_select('avatar_list', 'usermodified', 0, 'usermodified > 0');
         }
-
-        if (!$context instanceof \context_module) {
-            return;
-        }
-
-        $cm = get_coursemodule_from_id('avatar', $context->instanceid);
-        if (!$cm) {
-            return;
-        }
-
-        $DB->delete_records('avatar_user', ['cmid' => $cm->id]);
-
-        // Delete module-level files.
-        $fs = get_file_storage();
-        $fs->delete_area_files($context->id, 'mod_avatar');
     }
 
     /**
-     * Delete all user data for the specified user, in the specified contexts.
+     * Deletes the data of a user in the approved contexts.
      *
-     * @param approved_contextlist $contextlist The approved contexts and user information to delete information for.
+     * @param approved_contextlist $contextlist The approved contexts.
      */
     public static function delete_data_for_user(approved_contextlist $contextlist) {
         global $DB;
 
-        if (empty($contextlist->count())) {
-            return;
-        }
-
         $userid = $contextlist->get_user()->id;
         foreach ($contextlist->get_contexts() as $context) {
-            if ($context instanceof \context_module) {
-                $DB->delete_records('avatar_user', ['cmid' => $context->instanceid, 'userid' => $userid]);
-
-                // Delete user files in this context.
-                $fs = get_file_storage();
-                $fs->delete_area_files($context->id, 'mod_avatar', 'user_avatar', $userid);
-            } else if ($context instanceof \context_system) {
-                $DB->delete_records('avatar_user', [
-                    'userid' => $userid,
-                    'cmid' => 0,
-                ]);
-
-                // Delete system-level user files.
-                $fs = get_file_storage();
-                $fs->delete_area_files($context->id, 'mod_avatar', 'user_avatar', $userid);
+            if ($context instanceof context\user && $context->instanceid == $userid) {
+                $DB->delete_records('avatar_user', ['userid' => $userid]);
+            } else if ($context instanceof context\system) {
+                $DB->set_field('avatar_list', 'usermodified', 0, ['usermodified' => $userid]);
             }
         }
+    }
+
+    /**
+     * Deletes the data of several users in a context.
+     *
+     * @param approved_userlist $userlist The approved users and context.
+     */
+    public static function delete_data_for_users(approved_userlist $userlist) {
+        global $DB;
+
+        $context = $userlist->get_context();
+        $userids = $userlist->get_userids();
+        if (!$userids) {
+            return;
+        }
+        if ($context instanceof context\user) {
+            if (in_array($context->instanceid, $userids)) {
+                $DB->delete_records('avatar_user', ['userid' => $context->instanceid]);
+            }
+        } else if ($context instanceof context\system) {
+            [$insql, $params] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+            $DB->set_field_select('avatar_list', 'usermodified', 0, "usermodified $insql", $params);
+        }
+    }
+
+    /**
+     * The name of the activity in which an avatar was collected.
+     *
+     * @param int|null $cmid The course module id.
+     * @return string
+     */
+    protected static function get_activity_name(?int $cmid): string {
+        global $DB;
+
+        if (!$cmid) {
+            return '';
+        }
+        $cm = get_coursemodule_from_id('avatar', $cmid, 0, false, IGNORE_MISSING);
+        if (!$cm) {
+            return '';
+        }
+        return format_string($cm->name, true, ['context' => context\module::instance($cm->id)]);
     }
 }

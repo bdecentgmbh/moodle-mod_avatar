@@ -24,13 +24,15 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot.'/course/moodleform_mod.php');
+require_once($CFG->dirroot . '/course/moodleform_mod.php');
+
+use mod_avatar\hook\extend_mod_form;
+use mod_avatar\hook\mod_form_validation;
 
 /**
  * Module instance settings form.
  */
 class mod_avatar_mod_form extends moodleform_mod {
-
     /**
      * Defines forms elements.
      */
@@ -78,29 +80,47 @@ class mod_avatar_mod_form extends moodleform_mod {
             1 => get_string('displaymodeinline', 'mod_avatar'),
         ]);
         $mform->addHelpButton('displaymode', 'displaymode', 'mod_avatar');
-        // Collection limit.
-        if ($displaymode = get_config('mod_avatar', 'displaymode')) {
-            $mform->setDefault('displaymode', $displaymode);
-        }
+        $mform->setDefault('displaymode', (int) get_config('mod_avatar', 'displaymode'));
 
-        $editoroptions = ['maxfiles' => EDITOR_UNLIMITED_FILES, 'noclean' => true, 'context' => $this->context, 'subdirs' => true];
+        $editoroptions = avatar_get_editor_options($this->context);
 
         // Header content.
-        $mform->addElement('editor', 'headercontent_editor',
-            get_string('headercontent', 'mod_avatar'), ['rows' => 10], $editoroptions);
+        $mform->addElement(
+            'editor',
+            'headercontent_editor',
+            get_string('headercontent', 'mod_avatar'),
+            ['rows' => 10],
+            $editoroptions
+        );
         $mform->setType('headercontent_editor', PARAM_RAW);
         $mform->addHelpButton('headercontent_editor', 'headercontent', 'mod_avatar');
 
         // Footer content.
-        $mform->addElement('editor', 'footercontent_editor',
-            get_string('footercontent', 'mod_avatar'), ['rows' => 10], $editoroptions);
+        $mform->addElement(
+            'editor',
+            'footercontent_editor',
+            get_string('footercontent', 'mod_avatar'),
+            ['rows' => 10],
+            $editoroptions
+        );
         $mform->setType('footercontent_editor', PARAM_RAW);
         $mform->addHelpButton('footercontent_editor', 'footercontent', 'mod_avatar');
 
         // Empty state content.
-        $mform->addElement('editor', 'emptystate_editor',
-            get_string('emptystate', 'mod_avatar'), ['rows' => 10], $editoroptions);
+        $mform->addElement(
+            'editor',
+            'emptystate_editor',
+            get_string('emptystate', 'mod_avatar'),
+            ['rows' => 10],
+            $editoroptions
+        );
         $mform->setType('emptystate_editor', PARAM_RAW);
+        $mform->addHelpButton('emptystate_editor', 'emptystate', 'mod_avatar');
+
+        // Settings of the addons.
+        \core\di::get(\core\hook\manager::class)->dispatch(
+            new extend_mod_form($mform, (int) ($this->current->instance ?? 0), $this->context)
+        );
 
         // Standard module elements.
         $this->standard_coursemodule_elements();
@@ -120,7 +140,7 @@ class mod_avatar_mod_form extends moodleform_mod {
         $suffix = $this->get_suffix();
         $mform->addElement('checkbox', 'completioncollect' . $suffix, '', get_string('completioncollect', 'mod_avatar'));
 
-        return ['completionview' . $suffix, 'completioncollect' . $suffix];
+        return ['completioncollect' . $suffix];
     }
 
     /**
@@ -131,7 +151,26 @@ class mod_avatar_mod_form extends moodleform_mod {
      */
     public function completion_rule_enabled($data) {
         $suffix = $this->get_suffix();
-        return !empty($data['completionview' . $suffix]) || !empty($data['completioncollect' . $suffix]);
+        return !empty($data['completioncollect' . $suffix]);
+    }
+
+    /**
+     * Validation on the settings form.
+     *
+     * @param array $data
+     * @param array $files
+     */
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+
+        if (($data['avatarselection'] ?? 0) == \mod_avatar\avatar::SELECTION_SPECIFIC && trim($data['specifictags'] ?? '') === '') {
+            $errors['specifictags'] = get_string('required');
+        }
+
+        $hook = new mod_form_validation($data, $files);
+        \core\di::get(\core\hook\manager::class)->dispatch($hook);
+
+        return array_merge($errors, $hook->get_errors());
     }
 
     /**
@@ -145,25 +184,6 @@ class mod_avatar_mod_form extends moodleform_mod {
     }
 
     /**
-     * Process the data before it is saved.
-     *
-     * @return array
-     */
-    public function get_data() {
-        $data = parent::get_data();
-        if (!$data) {
-            return $data;
-        }
-        if (!empty($data->completionunlocked)) {
-            $autocompletion = !empty($data->completion) && $data->completion == COMPLETION_TRACKING_AUTOMATIC;
-            if (empty($data->completioncollect) || !$autocompletion) {
-                $data->completioncollectcount = 0;
-            }
-        }
-        return $data;
-    }
-
-    /**
      * Post-process the data before it is saved.
      *
      * @param stdClass $data the form data to be modified.
@@ -173,38 +193,40 @@ class mod_avatar_mod_form extends moodleform_mod {
 
         if (!empty($data->completionunlocked)) {
             $autocompletion = !empty($data->completion) && $data->completion == COMPLETION_TRACKING_AUTOMATIC;
-            if (empty($data->completionview) || !$autocompletion) {
-                $data->completionview = 0;
-            }
-            if (empty($data->completioncollect) || !$autocompletion) {
-                $data->completioncollect = 0;
+            $suffix = $this->get_suffix();
+            if (empty($data->{'completioncollect' . $suffix}) || !$autocompletion) {
+                $data->{'completioncollect' . $suffix} = 0;
             }
         }
     }
 
     /**
-     * Prepares the data for the form. Prepare the file areas.
+     * Prepares the editors of the form.
      *
      * @param array $defaultvalues The default values for the form.
      */
     public function data_preprocessing(&$defaultvalues) {
-
-        $fileareas = ['headercontent', 'footercontent', 'emptystate'];
-
-        foreach ($fileareas as $area) {
+        $options = avatar_get_editor_options($this->context);
+        foreach (['headercontent', 'footercontent', 'emptystate'] as $area) {
+            $draftitemid = file_get_submitted_draft_itemid($area . '_editor');
             if ($this->current->instance) {
-
-                $draftitemid = file_get_submitted_draft_itemid($area);
-                $defaultvalues[$area . '_editor']['text'] = file_prepare_draft_area(
-                    $draftitemid, $this->context->id, 'mod_avatar', $area, 0, avatar_get_editor_options(), $defaultvalues[$area]);
-
-                $defaultvalues[$area . '_editor']['format'] = $defaultvalues[$area . 'format'] ?? 0;
-                $defaultvalues[$area . '_editor']['itemid'] = $draftitemid;
+                $defaultvalues[$area . '_editor'] = [
+                    'text' => file_prepare_draft_area(
+                        $draftitemid,
+                        $this->context->id,
+                        'mod_avatar',
+                        $area,
+                        $defaultvalues['id'],
+                        $options,
+                        $defaultvalues[$area] ?? ''
+                    ),
+                    'format' => $defaultvalues[$area . 'format'] ?? FORMAT_HTML,
+                    'itemid' => $draftitemid,
+                ];
             } else {
-                $draftitemid = file_get_submitted_draft_itemid($area . '_editor');
                 file_prepare_draft_area($draftitemid, null, 'mod_avatar', $area, false);
-                $defaultvalues[$area . '_editor']['format'] = editors_get_preferred_format();
-                $defaultvalues[$area . '_editor']['itemid'] = $draftitemid;
+                $defaultvalues[$area . '_editor'] = ['text' => '', 'format' => editors_get_preferred_format(),
+                    'itemid' => $draftitemid];
             }
         }
     }

@@ -55,20 +55,20 @@ $table->head  = [get_string('name')];
 $table->align = ['left', 'left', 'left'];
 
 foreach ($avatars as $avatar) {
-
     if (!$avatar->visible) {
         $link = html_writer::link(
             new moodle_url('/mod/avatar/view.php', ['id' => $avatar->coursemodule]),
             format_string($avatar->name, true),
-            ['class' => 'dimmed']);
+            ['class' => 'dimmed']
+        );
     } else {
         $link = html_writer::link(
             new moodle_url('/mod/avatar/view.php', ['id' => $avatar->coursemodule]),
-            format_string($avatar->name, true));
+            format_string($avatar->name, true)
+        );
     }
 
     $table->data[] = [$link];
-
 }
 
 echo html_writer::table($table);

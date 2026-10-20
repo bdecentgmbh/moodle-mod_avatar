@@ -24,54 +24,50 @@
 
 namespace mod_avatar\output;
 
-use renderable;
-use templatable;
+use core\output\renderable;
 use core\output\renderer_base;
+use core\output\templatable;
+use mod_avatar\activity;
 use mod_avatar\avatar;
-use moodle_url;
+use mod_avatar\collection;
+use mod_avatar\util;
 
 /**
- * Avatar activity renderable class.
+ * The avatars of an avatar activity, as shown to the current user (activity page or course page).
+ *
+ * @package    mod_avatar
+ * @copyright  2025 bdecent GmbH <https://bdecent.de>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class avatar_activity implements renderable, templatable {
-
-    /** @var object The avatar instance */
+    /** @var \stdClass The activity instance (record of avatar). */
     public $cmavatar;
 
-    /** @var object The course module */
+    /** @var \cm_info The course module. */
     public $cm;
 
-    /** @var object The course */
+    /** @var \stdClass The course. */
     public $course;
 
-    /** @var \mod_avatar\util The helper instance */
-    public $helper;
-
-    /** @var \context_system The system context */
-    protected $syscontext;
-
-    /** @var \context_module The course module context */
+    /** @var \core\context\module The context of the activity. */
     protected $cmcontext;
 
     /**
      * Constructor.
      *
-     * @param object $avatar The avatar instance
-     * @param object $cm The course module
-     * @param object $course The course
-     * @return void
+     * @param \stdClass $avatar The activity instance (record of avatar).
+     * @param \stdClass|\cm_info $cm The course module.
+     * @param \stdClass $course The course.
      */
     public function __construct($avatar, $cm, $course) {
         $this->cmavatar = $avatar;
-        $this->cm = $cm;
+        $this->cm = $cm instanceof \cm_info ? $cm : \cm_info::create($cm);
         $this->course = $course;
-        $this->helper = new \mod_avatar\util();
-        $this->syscontext = \context_system::instance();
-        $this->cmcontext = $cm ? \context_module::instance($cm->id) : null;
+        $this->cmcontext = \core\context\module::instance($this->cm->id);
     }
 
     /**
-     * Generate the data to render the templates.
+     * Data for the template mod_avatar/avatar_activity.
      *
      * @param renderer_base $output
      * @return array
@@ -79,138 +75,98 @@ class avatar_activity implements renderable, templatable {
     public function export_for_template(renderer_base $output) {
         global $USER;
 
-        // Get users current avatars and progress.
-        $useravatars = $this->helper->get_user_avatars($USER->id);
+        $availability = collection::get_activity_availability($this->cm, $this->cmavatar, $USER->id);
+        $avatars = $this->get_available_avatars(util::get_user_avatars($USER->id), $availability->is_available());
+        $messages = array_map(fn($message) => ['message' => $message], $availability->get_messages());
 
-        $headercontent = file_rewrite_pluginfile_urls(
-            $this->cmavatar->headercontent,  'pluginfile.php',
-            $this->cmcontext->id ?? $this->syscontext,  'mod_avatar',  'headercontent',  $this->cmavatar->id);
-
-        $footercontent = file_rewrite_pluginfile_urls(
-            $this->cmavatar->footercontent,  'pluginfile.php',
-            $this->cmcontext->id ?? $this->syscontext,  'mod_avatar',  'footercontent',  $this->cmavatar->id);
-
-        $emptystate = file_rewrite_pluginfile_urls(
-            $this->cmavatar->emptystate,  'pluginfile.php',
-            $this->cmcontext->id ?? $this->syscontext,  'mod_avatar',  'emptystate',  $this->cmavatar->id);
-
-        $data = [
-            'name' => format_string($this->cmavatar->name),
-            'course' => [
-                'shortname' => $this->course->shortname,
-                'fullname' => $this->course->fullname,
-            ],
-            'headercontent' => format_text($headercontent, FORMAT_HTML, ['noclean' => true]),
-            'footercontent' => format_text($footercontent, FORMAT_HTML, ['noclean' => true]),
-            'emptystate' => format_text($emptystate, FORMAT_HTML, ['noclean' => true]),
-            'displaymode' => $this->cmavatar->displaymode,
-            'displaymodepage' => ($this->cmavatar->displaymode == 0),
-            'displaymodeinline' => ($this->cmavatar->displaymode == 1),
-            'avatars' => $this->get_available_avatars($useravatars),
-            'isavailable' => self::cm_avatar_available($this->cm, $USER->id),
+        return [
+            'name' => format_string($this->cmavatar->name, true, ['context' => $this->cmcontext, 'escape' => false]),
+            'headercontent' => $this->format_text_area('headercontent'),
+            'footercontent' => $this->format_text_area('footercontent'),
+            'emptystate' => $this->format_text_area('emptystate'),
+            'displaymodepage' => ($this->cmavatar->displaymode != \mod_avatar\activity::DISPLAY_INLINE),
+            'displaymodeinline' => ($this->cmavatar->displaymode == \mod_avatar\activity::DISPLAY_INLINE),
+            'avatars' => $avatars,
+            'hasavatars' => !empty($avatars),
+            'isavailable' => $availability->is_available(),
+            'availabilitymessages' => $messages,
+            'has_availability_restriction' => !empty($messages) || !$availability->is_available(),
         ];
-
-        $data['hasavatars'] = !empty($data['avatars']['avatars']);
-
-        return $data;
     }
 
     /**
-     * Get the SQL for available avatars.
+     * Formats a text of the activity (header, footer, empty state).
      *
-     * @return array SQL and params
+     * @param string $area The field and file area.
+     * @return string HTML
+     */
+    protected function format_text_area(string $area): string {
+        $text = (string) ($this->cmavatar->$area ?? '');
+        if (trim(strip_tags($text, '<img><video><audio><iframe><object>')) === '') {
+            return '';
+        }
+        $text = file_rewrite_pluginfile_urls(
+            $text,
+            'pluginfile.php',
+            $this->cmcontext->id,
+            'mod_avatar',
+            $area,
+            $this->cmavatar->id
+        );
+        return format_text($text, $this->cmavatar->{$area . 'format'} ?? FORMAT_HTML, ['context' => $this->cmcontext]);
+    }
+
+    /**
+     * SQL of the avatars the activity offers.
+     *
+     * @return array [$sql, $params]
      */
     public function get_available_avatars_sql() {
-        global $DB;
-
-        if ($this->cmavatar->avatarselection == 0) {
-            $sql = 'SELECT al.*
-                    FROM {avatar_list} al
-                    WHERE al.archived = 0 AND al.status = :status';
-            $params = ['status' => 1];
-        } else {
-            // Specific tags.
-            $tags = explode(',', $this->cmavatar->specifictags);
-            $tags = array_map('trim', $tags);
-            list($insql, $params) = $DB->get_in_or_equal($tags);
-            $sql = "SELECT al.*
-                    FROM {avatar_list} al
-                    WHERE al.archived = 0 AND al.status = 1 AND al.id IN (
-                        SELECT ti.itemid
-                        FROM {tag_instance} ti
-                        JOIN {tag} t ON t.id = ti.tagid
-                        WHERE t.name $insql AND ti.component = 'mod_avatar' GROUP BY ti.itemid
-                    ) ORDER BY al.timecreated";
-
-        }
-
-        return [$sql, $params];
+        return activity::get_avatars_sql($this->cmavatar);
     }
 
     /**
-     * Get available avatars for this activity.
+     * The avatars the activity offers, with the progress of the current user.
      *
-     * @param array $useravatars Current users avatars
+     * @param array $useravatars The avatars of the current user (from util::get_user_avatars()).
+     * @param bool $activityavailable Whether the user may collect avatars in the activity.
      * @return array
      */
-    protected function get_available_avatars($useravatars) {
-        global $DB, $USER;
+    protected function get_available_avatars(array $useravatars, bool $activityavailable): array {
+        global $USER;
+
+        $canpick = has_capability('mod/avatar:collect', $this->cmcontext);
+        $canupgrade = has_capability('mod/avatar:upgrade', $this->cmcontext);
 
         $avatars = [];
-
-        list($sql, $params) = $this->get_available_avatars_sql();
-        $records = $DB->get_records_sql($sql, $params);
-
-        foreach ($records as $record) {
-            // User avatar.
+        foreach (activity::get_avatars($this->cmavatar) as $record) {
+            $picked = isset($useravatars[$record->id]);
             $avatar = $useravatars[$record->id] ?? new avatar($record->id, $record);
+            $progress = $avatar->info->get_progress();
 
-            // Check the user own the avatar.
-            $picked = isset($useravatars[$record->id]) ? true : false;
-
-            $progress = $avatar->info->get_progress($record);
             $avatars[] = [
                 'id' => $record->id,
-                'name' => $record->name,
+                'name' => format_string($record->name, true, ['context' => \core\context\system::instance(), 'escape' => false]),
                 'previewimage' => $picked ? $avatar->info->get_thumbnail_image_url() : $avatar->info->get_preview_image(),
                 'progress_indicators' => $progress['indicators'],
-                'canpick' => $progress['canpick'],
-                'canupgrade' => $progress['canupgrade'],
+                'canpick' => $canpick && $progress['canpick'],
+                'canupgrade' => $canupgrade && $progress['canupgrade'],
                 'view_url' => $this->get_avatar_view_url($record->id),
                 'cmid' => $this->cm->id,
-                'isavailable' => $avatar->is_avatar_available($USER->id, $this->cm),
+                'isavailable' => $activityavailable && collection::is_avatar_available($record, $USER->id, $this->cm),
             ];
-
         }
 
-        return ['avatars' => $avatars];
+        return $avatars;
     }
 
     /**
-     * Get the URL for viewing an avatar
+     * The URL of the page of an avatar, within this activity.
      *
      * @param int $avatarid The ID of the avatar
-     * @return string The URL for viewing the avatar
+     * @return string
      */
     protected function get_avatar_view_url($avatarid) {
-        $params = ['avatarid' => $avatarid];
-        if ($this->cm) {
-            $params['cmid'] = $this->cm->id;
-        }
-        return (new moodle_url('/mod/avatar/view_avatar.php', $params))->out(false);
-    }
-
-    /**
-     * Confirm the avatar is available for the user.
-     *
-     * @param object $cm
-     * @param int $userid
-     *
-     * @return bool REsult of the availability of the user for this avatar.
-     */
-    public static function cm_avatar_available($cm, $userid = null) {
-
-        // Currently there is no conditions available.
-        return true;
+        return (new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $avatarid, 'cmid' => $this->cm->id]))->out(false);
     }
 }

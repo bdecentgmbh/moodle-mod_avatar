@@ -28,7 +28,6 @@ namespace mod_avatar\tag;
  * Tag area class for mod_avatar
  */
 class avatar_tag_search {
-
     /**
      * @var \core_tag_tag
      */
@@ -86,91 +85,79 @@ class avatar_tag_search {
     }
 
     /**
-     * Get content for the tag index page.
+     * The SQL (FROM and WHERE) of the active avatars with the tag.
+     *
+     * @return array [$sql, $params]
+     */
+    protected function get_sql(): array {
+        $sql = "FROM {avatar_list} a
+                JOIN {tag_instance} ti ON ti.itemid = a.id
+               WHERE ti.tagid = :tagid AND ti.itemtype = :itemtype AND ti.component = :component
+                     AND a.status = 1 AND a.archived = 0";
+        $params = ['tagid' => $this->tag->id, 'itemtype' => 'avatar', 'component' => 'mod_avatar'];
+
+        if ($this->exclusivemode) {
+            $sql .= " AND NOT EXISTS (
+                          SELECT 1
+                            FROM {tag_instance} ti2
+                           WHERE ti2.itemid = a.id AND ti2.tagid <> :tagid2
+                                 AND ti2.itemtype = :itemtype2 AND ti2.component = :component2
+                      )";
+            $params += ['tagid2' => $this->tag->id, 'itemtype2' => 'avatar', 'component2' => 'mod_avatar'];
+        }
+        return [$sql, $params];
+    }
+
+    /**
+     * Data for the template mod_avatar/tagindex.
      *
      * @return array
      */
     public function get_content() {
         global $DB;
 
-        $tagid = $this->tag->id;
-        $query = "SELECT a.*, ti.tagid
-                   FROM {avatar_list} a
-                   JOIN {tag_instance} ti ON ti.itemid = a.id
-                  WHERE ti.tagid = :tagid
-                    AND ti.itemtype = :itemtype
-                    AND ti.component = :component";
+        [$sql, $params] = $this->get_sql();
+        $records = $DB->get_records_sql(
+            "SELECT a.id, a.name, a.description, a.descriptionformat $sql ORDER BY a.name, a.id",
+            $params,
+            $this->page * $this->perpage,
+            $this->perpage
+        );
 
-        if ($this->exclusivemode) {
-            $query .= " AND NOT EXISTS (
-                         SELECT 1
-                           FROM {tag_instance}
-                          WHERE itemid = a.id
-                            AND tagid != :tagid2
-                            AND itemtype = :itemtype2
-                            AND component = :component2
-                       )";
+        $context = \core\context\system::instance();
+        $avatars = [];
+        foreach ($records as $record) {
+            $description = file_rewrite_pluginfile_urls(
+                (string) $record->description,
+                'pluginfile.php',
+                $context->id,
+                'mod_avatar',
+                'description',
+                $record->id
+            );
+            $avatars[] = [
+                'id' => $record->id,
+                'name' => format_string($record->name, true, ['context' => $context, 'escape' => false]),
+                'description' => format_text($description, $record->descriptionformat, ['context' => $context]),
+                'viewurl' => (new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $record->id]))->out(false),
+            ];
         }
 
-        $params = [
-            'tagid' => $tagid,
-            'itemtype' => 'avatar',
-            'component' => 'mod_avatar',
-        ];
-
-        if ($this->exclusivemode) {
-            $params['tagid2'] = $tagid;
-            $params['itemtype2'] = 'avatar';
-            $params['component2'] = 'mod_avatar';
-        }
-
-        $avatars = $DB->get_records_sql($query, $params, $this->page * $this->perpage, $this->perpage);
-
-        $content = [
-            'avatars' => array_values($avatars),
-            'tagid' => $tagid,
+        return [
+            'avatars' => $avatars,
+            'tagid' => $this->tag->id,
             'exclusivemode' => $this->exclusivemode,
         ];
-
-        return $content;
     }
 
     /**
-     * Get total count of items.
+     * Total count of items.
      *
      * @return int
      */
     public function get_count() {
         global $DB;
-
-        $tagid = $this->tag->id;
-        $query = "SELECT COUNT(*)
-                   FROM {avatar_list} a
-                   JOIN {tag_instance} ti ON ti.itemid = a.id
-                  WHERE ti.tagid = :tagid
-                    AND ti.itemtype = :itemtype
-                    AND ti.component = :component";
-
-        if ($this->exclusivemode) {
-            $query .= " AND NOT EXISTS (
-                            SELECT 1
-                            FROM {tag_instance}
-                            WHERE itemid = a.id AND tagid != :tagid2 AND itemtype = :itemtype2 AND component = :component2
-                        )";
-        }
-
-        $params = [
-            'tagid' => $tagid,
-            'itemtype' => 'avatar',
-            'component' => 'mod_avatar',
-        ];
-
-        if ($this->exclusivemode) {
-            $params['tagid2'] = $tagid;
-            $params['itemtype2'] = 'avatar';
-            $params['component2'] = 'mod_avatar';
-        }
-
-        return $DB->count_records_sql($query, $params);
+        [$sql, $params] = $this->get_sql();
+        return $DB->count_records_sql("SELECT COUNT(1) $sql", $params);
     }
 }

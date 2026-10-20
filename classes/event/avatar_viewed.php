@@ -28,7 +28,6 @@ namespace mod_avatar\event;
  * The avatar viewed event class.
  */
 class avatar_viewed extends \core\event\base {
-
     /**
      * Init method.
      *
@@ -37,7 +36,7 @@ class avatar_viewed extends \core\event\base {
     protected function init() {
         $this->data['crud'] = 'r';
         $this->data['edulevel'] = self::LEVEL_PARTICIPATING;
-        $this->data['objecttable'] = 'avatar';
+        $this->data['objecttable'] = 'avatar_list';
     }
 
     /**
@@ -65,5 +64,23 @@ class avatar_viewed extends \core\event\base {
      */
     public function get_url() {
         return new \moodle_url('/mod/avatar/view_avatar.php', ['avatarid' => $this->objectid, 'cmid' => $this->contextinstanceid]);
+    }
+
+    /**
+     * The avatar is restored as avatar_item (when the backup creates it).
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'avatar_list', 'restore' => 'avatar_item'];
+    }
+
+    /**
+     * The avatar in the other data.
+     *
+     * @return array|false
+     */
+    public static function get_other_mapping() {
+        return false;
     }
 }

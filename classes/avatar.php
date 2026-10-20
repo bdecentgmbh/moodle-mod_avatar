@@ -31,7 +31,6 @@ use stdClass;
  * Avatar definitions.
  */
 class avatar {
-
     /**
      * @var int The ID of the avatar
      */
@@ -56,6 +55,11 @@ class avatar {
      * @var bool Display the specific tags related avatars in the activity.
      */
     public const SELECTION_SPECIFIC = 1;
+
+    /**
+     * @var int The highest number of variants of an avatar.
+     */
+    public const MAX_VARIANTS = 10;
 
     /**
      * Constructor
@@ -108,7 +112,7 @@ class avatar {
             return $this->data->$key;
         }
 
-        throw new \Exception("Property $key does not exist");
+        throw new \coding_exception("Property $key does not exist");
     }
 
     /**
@@ -158,19 +162,17 @@ class avatar {
 
         $result = $DB->update_record('avatar_list', $data);
 
+        \core\di::get(\core\hook\manager::class)->dispatch(new \mod_avatar\hook\after_avatar_saved($data, false));
+
         if ($result) {
             $this->data = $DB->get_record('avatar_list', ['id' => $this->id]);
         }
 
-        // Avatar updated successfully, Trigger the event.
-        $event = \mod_avatar\event\avatar_changed::create([
-            'context' => \context_system::instance(),
+        \mod_avatar\event\avatar_changed::create([
+            'context' => \core\context\system::instance(),
             'objectid' => $data->id,
-            'other' => [
-                'data' => $data,
-            ],
-        ]);
-        $event->trigger();
+            'other' => ['name' => $data->name ?? $this->data->name],
+        ])->trigger();
 
         return $result;
     }
@@ -184,6 +186,7 @@ class avatar {
         global $DB;
         $this->data->archived = 1;
         $this->data->timearchived = time();
+        $this->data->timemodified = time();
         return $DB->update_record('avatar_list', $this->data);
     }
 
@@ -196,19 +199,44 @@ class avatar {
         global $DB;
         $this->data->archived = 0;
         $this->data->timearchived = null;
+        $this->data->timemodified = time();
         return $DB->update_record('avatar_list', $this->data);
     }
 
     /**
-     * Delete the avatar.
+     * Deletes the avatar, its files and tags, and removes it from the collections of the users.
      *
      * @return bool
      */
     public function delete() {
         global $DB;
-        // Delete tags.
+
+        \core\di::get(\core\hook\manager::class)->dispatch(new \mod_avatar\hook\before_avatar_deleted($this->data));
+
+        $context = \core\context\system::instance();
+        $transaction = $DB->start_delegated_transaction();
         \core_tag_tag::remove_all_item_tags('mod_avatar', 'avatar', $this->id);
-        return $DB->delete_records('avatar_list', ['id' => $this->id]);
+        $DB->delete_records('avatar_user', ['avatarid' => $this->id]);
+        $DB->delete_records('avatar_list', ['id' => $this->id]);
+
+        $fs = get_file_storage();
+        foreach (['previewimage', 'additionalmedia', 'description', 'secretinfo'] as $area) {
+            $fs->delete_area_files($context->id, 'mod_avatar', $area, $this->id);
+        }
+        for ($i = 1; $i <= self::MAX_VARIANTS; $i++) {
+            $fs->delete_area_files($context->id, 'mod_avatar', "avatarimage{$i}", $this->id);
+            $fs->delete_area_files($context->id, 'mod_avatar', "avatarthumbnail{$i}", $this->id);
+            $fs->delete_area_files($context->id, 'mod_avatar', "animationstates{$i}", $this->id);
+        }
+        $transaction->allow_commit();
+
+        \mod_avatar\event\avatar_deleted::create([
+            'context' => $context,
+            'objectid' => $this->id,
+            'other' => ['name' => $this->data->name, 'idnumber' => $this->data->idnumber],
+        ])->trigger();
+
+        return true;
     }
 
     /**
@@ -232,118 +260,142 @@ class avatar {
     }
 
     /**
-     * Handle file uploads for the avatar.
+     * Options of the editors of the avatar form (description and secret information).
      *
-     * @param \stdClass $data Form data
-     * @param \context $context Context
-     * @return void
-     */
-    public function handle_file_uploads($data, $context) {
-        global $CFG;
-
-        $filemanageroptions = ['maxbytes' => $CFG->maxbytes, 'subdirs' => 0, 'maxfiles' => 1, 'accepted_types' => ['image']];
-
-        // Save preview image fileareas.
-        $draftitemid = file_get_submitted_draft_itemid('previewimage');
-        file_save_draft_area_files($draftitemid, $context->id, 'mod_avatar', 'previewimage', $this->id, $filemanageroptions);
-
-        // Save additional media files.
-        $draftitemid = file_get_submitted_draft_itemid('additionalmedia');
-        file_save_draft_area_files($draftitemid, $context->id, 'mod_avatar', 'additionalmedia', $this->id,
-            ['maxbytes' => $CFG->maxbytes, 'maxfiles' => -1, 'subdirs' => 0, 'accepted_types' => ['image', 'video']]);
-
-        // Save description files.
-        $draftitemid = file_get_submitted_draft_itemid('description_editor');
-        $data = file_postupdate_standard_editor($data, 'description',
-            $this->get_description_editor_options($context), $context, 'mod_avatar', 'description', $this->id);
-
-        // Save secretinfo.
-        $data = file_postupdate_standard_editor($data, 'secretinfo',
-            ['trusttext' => true, 'context' => $context, 'maxfiles' => 0], $context, 'mod_avatar', 'secretinfo', $this->id);
-
-        // Save variant images.
-        for ($i = 1; $i <= $data->variants; $i++) {
-            $draftitemid = file_get_submitted_draft_itemid("avatarimage{$i}");
-            file_save_draft_area_files(
-                $draftitemid, $context->id, 'mod_avatar', "avatarimage{$i}", $this->id, $filemanageroptions);
-
-            $draftitemid = file_get_submitted_draft_itemid("avatarthumbnail{$i}");
-            file_save_draft_area_files(
-                $draftitemid, $context->id, 'mod_avatar', "avatarthumbnail{$i}", $this->id, $filemanageroptions);
-
-            $draftitemid = file_get_submitted_draft_itemid("animationstates{$i}");
-            file_save_draft_area_files($draftitemid, $context->id, 'mod_avatar', "animationstates{$i}", $this->id,
-                ['maxbytes' => $CFG->maxbytes, 'maxfiles' => -1, 'subdirs' => 0, 'accepted_types' => ['image']]);
-        }
-
-    }
-
-    /**
-     * Prepare file areas for the avatar form.
-     *
-     * @param \context $context Context
-     * @return \stdClass Updated avatar data.
-     */
-    public function prepare_fileareas($context) {
-        global $CFG;
-
-        $avatar = $this->data;
-
-        // Prepare preview image.
-        $filemanageroptions = ['maxbytes' => $CFG->maxbytes, 'subdirs' => 0, 'maxfiles' => 1, 'accepted_types' => ['image']];
-
-        $draftitemid = file_get_submitted_draft_itemid('previewimage');
-        file_prepare_draft_area($draftitemid, $context->id, 'mod_avatar', 'previewimage', $this->id, $filemanageroptions);
-        $avatar->previewimage = $draftitemid;
-
-        $draftitemid = file_get_submitted_draft_itemid('additionalmedia');
-        file_prepare_draft_area($draftitemid, $context->id, 'mod_avatar', 'additionalmedia', $this->id,
-            ['maxbytes' => $CFG->maxbytes, 'maxfiles' => -1, 'subdirs' => 0, 'accepted_types' => ['image', 'video']]);
-        $avatar->additionalmedia = $draftitemid;
-
-        // Prepare description files.
-        $avatar = file_prepare_standard_editor($avatar, 'description',
-            $this->get_description_editor_options($context), $context, 'mod_avatar', 'description', $this->id);
-        $avatar = file_prepare_standard_editor($avatar, 'secretinfo',
-            ['trusttext' => true, 'context' => $context, 'maxfiles' => 0], $context, 'mod_avatar', 'secretinfo', $this->id);
-
-        for ($i = 1; $i <= $avatar->variants; $i++) {
-
-            $draftitemid = file_get_submitted_draft_itemid("avatarimage{$i}");
-            file_prepare_draft_area(
-                $draftitemid, $context->id, 'mod_avatar', "avatarimage{$i}", $this->id, $filemanageroptions);
-            $avatar->{"avatarimage{$i}"} = $draftitemid;
-
-            $draftitemid = file_get_submitted_draft_itemid("avatarthumbnail{$i}");
-            file_prepare_draft_area(
-                $draftitemid, $context->id, 'mod_avatar', "avatarthumbnail{$i}", $this->id, $filemanageroptions);
-            $avatar->{"avatarthumbnail{$i}"} = $draftitemid;
-
-            $draftitemid = file_get_submitted_draft_itemid("animationstates{$i}");
-            file_prepare_draft_area($draftitemid, $context->id, 'mod_avatar', "animationstates{$i}", $this->id,
-                ['maxbytes' => $CFG->maxbytes, 'maxfiles' => -1, 'subdirs' => 0, 'accepted_types' => ['image']]);
-            $avatar->{"animationstates{$i}"} = $draftitemid;
-        }
-
-        return $avatar;
-    }
-
-    /**
-     * Get description editor options.
-     *
-     * @param \context $context Context
+     * @param int $maxfiles Maximum number of embedded files (0 for none).
      * @return array
      */
-    private function get_description_editor_options($context) {
+    public static function get_editor_options(int $maxfiles = EDITOR_UNLIMITED_FILES): array {
         global $CFG;
+        require_once($CFG->libdir . '/formslib.php');
 
         return [
-            'maxfiles' => EDITOR_UNLIMITED_FILES,
+            'maxfiles' => $maxfiles,
             'maxbytes' => $CFG->maxbytes,
+            'subdirs' => false,
             'trusttext' => false,
-            'return_types' => FILE_INTERNAL | FILE_EXTERNAL,
-            'context' => $context,
+            'noclean' => false,
+            'context' => \core\context\system::instance(),
         ];
+    }
+
+    /**
+     * Options of a file manager of the avatar form.
+     *
+     * @param string $area The file area (previewimage, additionalmedia, avatarimageN, avatarthumbnailN, animationstatesN).
+     * @return array
+     */
+    public static function get_filemanager_options(string $area): array {
+        global $CFG;
+
+        $options = ['maxbytes' => $CFG->maxbytes, 'subdirs' => 0, 'maxfiles' => 1, 'accepted_types' => ['image']];
+        if ($area === 'additionalmedia') {
+            $options['maxfiles'] = -1;
+            $options['accepted_types'] = ['image', 'video'];
+        } else if (str_starts_with($area, 'animationstates')) {
+            $options['maxfiles'] = -1;
+        }
+        return $options;
+    }
+
+    /**
+     * Saves the editors and the files of the avatar form.
+     *
+     * @param \stdClass $data The data of the avatar form.
+     */
+    public function save_form_files(\stdClass $data): void {
+        global $DB;
+
+        $context = \core\context\system::instance();
+
+        $texts = (object) ['id' => $this->id];
+        foreach (['description' => EDITOR_UNLIMITED_FILES, 'secretinfo' => 0] as $field => $maxfiles) {
+            if (!isset($data->{$field . '_editor'})) {
+                continue;
+            }
+            $data = file_postupdate_standard_editor(
+                $data,
+                $field,
+                self::get_editor_options($maxfiles),
+                $context,
+                'mod_avatar',
+                $field,
+                $this->id
+            );
+            $texts->$field = $data->$field;
+            $texts->{$field . 'format'} = $data->{$field . 'format'};
+        }
+        $DB->update_record('avatar_list', $texts);
+
+        $variants = (int) ($data->variants ?? $this->data->variants);
+        $areas = ['previewimage', 'additionalmedia'];
+        for ($i = 1; $i <= $variants; $i++) {
+            array_push($areas, "avatarimage{$i}", "avatarthumbnail{$i}", "animationstates{$i}");
+        }
+        foreach ($areas as $area) {
+            if (isset($data->$area)) {
+                file_save_draft_area_files(
+                    $data->$area,
+                    $context->id,
+                    'mod_avatar',
+                    $area,
+                    $this->id,
+                    self::get_filemanager_options($area)
+                );
+            }
+        }
+
+        // Variants that were removed: delete their files.
+        $fs = get_file_storage();
+        for ($i = $variants + 1; $i <= self::MAX_VARIANTS; $i++) {
+            $fs->delete_area_files($context->id, 'mod_avatar', "avatarimage{$i}", $this->id);
+            $fs->delete_area_files($context->id, 'mod_avatar', "avatarthumbnail{$i}", $this->id);
+            $fs->delete_area_files($context->id, 'mod_avatar', "animationstates{$i}", $this->id);
+        }
+
+        $this->data = $DB->get_record('avatar_list', ['id' => $this->id], '*', MUST_EXIST);
+    }
+
+    /**
+     * Prepares the data of the avatar for the avatar form: editors, draft areas of the files and tags.
+     *
+     * @return \stdClass
+     */
+    public function prepare_form_data(): \stdClass {
+        $context = \core\context\system::instance();
+        $data = clone $this->data;
+
+        foreach (['description' => EDITOR_UNLIMITED_FILES, 'secretinfo' => 0] as $field => $maxfiles) {
+            $data = file_prepare_standard_editor(
+                $data,
+                $field,
+                self::get_editor_options($maxfiles),
+                $context,
+                'mod_avatar',
+                $field,
+                $this->id
+            );
+        }
+
+        $areas = ['previewimage', 'additionalmedia'];
+        for ($i = 1; $i <= $data->variants; $i++) {
+            array_push($areas, "avatarimage{$i}", "avatarthumbnail{$i}", "animationstates{$i}");
+        }
+        foreach ($areas as $area) {
+            $draftitemid = file_get_submitted_draft_itemid($area);
+            file_prepare_draft_area(
+                $draftitemid,
+                $context->id,
+                'mod_avatar',
+                $area,
+                $this->id,
+                self::get_filemanager_options($area)
+            );
+            $data->$area = $draftitemid;
+        }
+
+        $data->tags = \core_tag_tag::get_item_tags_array('mod_avatar', 'avatar', $this->id);
+        return $data;
     }
 
     /**
@@ -366,15 +418,16 @@ class avatar {
     }
 
     /**
-     * Check if an avatar is available to the user.
+     * Whether the avatar can be collected or upgraded by a user (see {@see collection::is_avatar_available()}).
      *
      * @param int $userid The user ID
-     * @param object|null $cm The course module (optional)
+     * @param \stdClass|\cm_info|null $cm The course module (optional)
      * @return bool True if the avatar is available, false otherwise
      */
     public function is_avatar_available($userid, $cm = null) {
-        // No restriction conditions available.
-        return true;
+        if ($cm && !$cm instanceof \cm_info) {
+            $cm = \cm_info::create($cm);
+        }
+        return collection::is_avatar_available($this->data, (int) $userid, $cm ?: null);
     }
-
 }

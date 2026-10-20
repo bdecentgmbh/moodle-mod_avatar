@@ -30,15 +30,16 @@ use Behat\Gherkin\Node\TableNode;
  * Avatar module - Behat step definitions
  */
 class behat_mod_avatar extends behat_base {
-
     /**
      * Navigate to avatar management page.
      *
      * @Given /^I navigate to avatar management$/
      */
     public function i_navigate_to_avatar_management() {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > Manage avatars']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > Manage avatars']
+        );
     }
 
     /**
@@ -47,8 +48,10 @@ class behat_mod_avatar extends behat_base {
      * @Given /^I navigate to avatar settings$/
      */
     public function i_navigate_to_avatar_settings() {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > General settings']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > General settings']
+        );
     }
 
     /**
@@ -57,8 +60,10 @@ class behat_mod_avatar extends behat_base {
      * @Given /^I navigate to archived avatars$/
      */
     public function i_navigate_to_archived_avatars() {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > Manage avatars']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > Manage avatars']
+        );
         $this->execute('behat_general::i_click_on', ['Archived avatars', 'link']);
     }
 
@@ -69,13 +74,17 @@ class behat_mod_avatar extends behat_base {
      * @param TableNode $data
      */
     public function i_create_avatar_with_the_following_fields_to_these_values(TableNode $data) {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > Manage avatars']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > Manage avatars']
+        );
         $this->execute('behat_general::i_click_on', ['Create avatar', 'button']);
         $this->execute('behat_forms::i_expand_all_fieldsets');
         $this->execute('behat_forms::i_set_the_following_fields_to_these_values', [$data]);
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Preview image']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Preview image']
+        );
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
         // Get the number of variants from the data.
@@ -89,14 +98,18 @@ class behat_mod_avatar extends behat_base {
 
         // Upload avatar images for each variant.
         for ($i = 1; $i <= $variants; $i++) {
-            $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-                ['mod/avatar/tests/fixtures/test_avatar_'.$i.'.png', "Avatar image {$i}"]);
+            $this->execute(
+                'behat_repository_upload::i_upload_file_to_filemanager',
+                ['mod/avatar/tests/fixtures/test_avatar_' . $i . '.png', "Avatar image {$i}"]
+            );
             $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
             if ($i == $variants) {
                 break; // Not add thumbnail for the last variant.
             }
-            $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-                ["mod/avatar/tests/fixtures/test_avatar_thumbnail_{$i}.png", "Avatar thumbnail {$i}"]);
+            $this->execute(
+                'behat_repository_upload::i_upload_file_to_filemanager',
+                ["mod/avatar/tests/fixtures/test_avatar_thumbnail_{$i}.png", "Avatar thumbnail {$i}"]
+            );
             $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
         }
     }
@@ -108,8 +121,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_create_avatar_with_secret_info_and_additional_media($avatarname) {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > Manage avatars']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > Manage avatars']
+        );
         $this->execute('behat_general::i_click_on', ['Create avatar', 'button']);
         $this->execute('behat_forms::i_expand_all_fieldsets');
 
@@ -123,30 +138,42 @@ class behat_mod_avatar extends behat_base {
         $this->execute('behat_forms::i_set_the_field_to', ['Number of variants', '2']);
 
         // Upload preview image.
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Preview image']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Preview image']
+        );
 
         // Save to update form with variant fields.
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
         // Upload variant images.
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Avatar image 1']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Avatar image 1']
+        );
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar_thumbnail.png', 'Avatar thumbnail 1']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar_thumbnail.png', 'Avatar thumbnail 1']
+        );
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Avatar image 2']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Avatar image 2']
+        );
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
         // Upload additional media.
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Additional media']);
-        $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-            ['mod/avatar/tests/fixtures/test_avatar.png', 'Additional media']);
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Additional media']
+        );
+        $this->execute(
+            'behat_repository_upload::i_upload_file_to_filemanager',
+            ['mod/avatar/tests/fixtures/test_avatar.png', 'Additional media']
+        );
 
         $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
     }
@@ -159,8 +186,10 @@ class behat_mod_avatar extends behat_base {
      * @param int $variants
      */
     public function i_create_a_multi_variant_avatar_with_variants($avatarname, $variants) {
-        $this->execute('behat_navigation::i_navigate_to_in_site_administration',
-            ['Plugins > Activity modules > Avatar > Manage avatars']);
+        $this->execute(
+            'behat_navigation::i_navigate_to_in_site_administration',
+            ['Plugins > Activity modules > Avatar > Manage avatars']
+        );
         $this->execute('behat_general::i_click_on', ['Create avatar', 'button']);
         $this->execute('behat_forms::i_expand_all_fieldsets');
 
@@ -177,15 +206,19 @@ class behat_mod_avatar extends behat_base {
 
         // Upload avatar images for each variant.
         for ($i = 1; $i <= $variants; $i++) {
-            $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-                ["mod/avatar/tests/fixtures/test_avatar_{$i}.png", "Avatar image {$i}"]);
+            $this->execute(
+                'behat_repository_upload::i_upload_file_to_filemanager',
+                ["mod/avatar/tests/fixtures/test_avatar_{$i}.png", "Avatar image {$i}"]
+            );
             $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
 
             if ($i == $variants) {
                 break; // Not add thumbnail for the last variant.
             }
-            $this->execute('behat_repository_upload::i_upload_file_to_filemanager',
-                ["mod/avatar/tests/fixtures/test_avatar_thumbnail_{$i}.png", "Avatar thumbnail {$i}"]);
+            $this->execute(
+                'behat_repository_upload::i_upload_file_to_filemanager',
+                ["mod/avatar/tests/fixtures/test_avatar_thumbnail_{$i}.png", "Avatar thumbnail {$i}"]
+            );
             $this->execute('behat_general::i_click_on', ['Save changes', 'button']);
         }
     }
@@ -199,7 +232,7 @@ class behat_mod_avatar extends behat_base {
      */
     public function i_add_an_avatar_activity_to_course_with($coursename, TableNode $data) {
         $this->execute('behat_navigation::i_am_on_course_homepage_with_editing_mode_on', [$coursename]);
-        $this->execute('behat_course::i_add_to_course_section_and_i_fill_the_form_with', ['Avatar', $coursename, 1, $data]);
+        $this->execute('behat_course::i_add_to_course_section_and_i_fill_the_form_with', ['avatar', $coursename, 1, $data]);
     }
 
     /**
@@ -209,8 +242,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_avatar_in_the_avatar_list($avatarname) {
-        $this->execute('behat_general::assert_element_contains_text',
-            [$avatarname, 'table.avatars', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_contains_text',
+            [$avatarname, 'table.avatars', 'css_element']
+        );
     }
 
     /**
@@ -220,8 +255,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_not_see_avatar_in_the_avatar_list($avatarname) {
-        $this->execute('behat_general::assert_element_not_contains_text',
-            [$avatarname, 'table.avatars', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_not_contains_text',
+            [$avatarname, 'table.avatars', 'css_element']
+        );
     }
 
     /**
@@ -231,8 +268,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_avatar_in_the_archived_avatars_list($avatarname) {
-        $this->execute('behat_general::assert_element_contains_text',
-            [$avatarname, 'table.archived-avatars', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_contains_text',
+            [$avatarname, 'table.archived-avatars', 'css_element']
+        );
     }
 
     /**
@@ -242,8 +281,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_not_see_avatar_in_the_archived_avatars_list($avatarname) {
-        $this->execute('behat_general::assert_element_not_contains_text',
-            [$avatarname, 'table.archived-avatars', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_not_contains_text',
+            [$avatarname, 'table.archived-avatars', 'css_element']
+        );
     }
 
     /**
@@ -253,8 +294,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_delete_archived_avatar($avatarname) {
-        $this->execute('behat_general::i_click_on_in_the',
-            ['.action-delete', 'css_element', $avatarname, 'table_row']);
+        $this->execute(
+            'behat_general::i_click_on_in_the',
+            ['.action-delete', 'css_element', $avatarname, 'table_row']
+        );
         $this->execute('behat_general::i_click_on', ['Yes', 'button']);
     }
 
@@ -265,8 +308,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_collect_avatar($avatarname) {
-        $this->execute('behat_general::i_click_on_in_the',
-            ['.action-collect', 'css_element', ".avatar-details[data-title=$avatarname]", 'css_element']);
+        $this->execute(
+            'behat_general::i_click_on_in_the',
+            ['.action-collect', 'css_element', ".avatar-details[data-title=$avatarname]", 'css_element']
+        );
     }
 
     /**
@@ -276,8 +321,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_pick_avatar($avatarname) {
-        $this->execute('behat_general::i_click_on_in_the',
-            ['Pick', 'button', ".avatar-details[data-title=\"$avatarname\"]", 'css_element']);
+        $this->execute(
+            'behat_general::i_click_on_in_the',
+            ['Pick', 'button', ".avatar-details[data-title=\"$avatarname\"]", 'css_element']
+        );
     }
 
     /**
@@ -287,8 +334,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_upgrade_avatar_to_the_next_variant($avatarname) {
-        $this->execute('behat_general::i_click_on_in_the',
-            ['.action-upgrade', 'css_element', $avatarname, 'table_row']);
+        $this->execute(
+            'behat_general::i_click_on_in_the',
+            ['.action-upgrade', 'css_element', $avatarname, 'table_row']
+        );
         $this->execute('behat_general::i_click_on', ['Upgrade', 'button']);
     }
 
@@ -318,8 +367,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_avatar_in_my_collection($avatarname) {
-        $this->execute('behat_general::assert_element_contains_text',
-            [$avatarname, '#page-mod-avatar-myavatars .avatar-gallery .avatar-card', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_contains_text',
+            [$avatarname, '#page-mod-avatar-myavatars .avatar-gallery .avatar-card', 'css_element']
+        );
     }
 
     /**
@@ -329,8 +380,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_not_see_avatar_in_my_collection($avatarname) {
-        $this->execute('behat_general::assert_element_not_contains_text',
-            [$avatarname, '#page-mod-avatar-myavatars .avatar-gallery .avatar-card', 'css_element']);
+        $this->execute(
+            'behat_general::assert_element_not_contains_text',
+            [$avatarname, '#page-mod-avatar-myavatars .avatar-gallery .avatar-card', 'css_element']
+        );
     }
 
     /**
@@ -342,13 +395,15 @@ class behat_mod_avatar extends behat_base {
      */
     public function i_should_see_avatar_with_variant_level($avatarname, $level) {
 
-        $imagename = 'test_avatar_thumbnail_'.$level.'.png';
+        $imagename = 'test_avatar_thumbnail_' . $level . '.png';
 
-        $this->execute('behat_general::should_exist',
+        $this->execute(
+            'behat_general::should_exist',
             ["//div[contains(@class, 'avatar-card') or contains(@class, 'avatar-block')]
             //img[contains(@src, '{$imagename}') or contains(@src, 'test_avatar_{$level}.png')
             and contains(@alt, '{$avatarname}')]",
-            'xpath_element']);
+            'xpath_element']
+        );
     }
 
     /**
@@ -358,10 +413,12 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_tag_images_for_avatar($avatarname) {
-        $this->execute('behat_general::should_exist',
+        $this->execute(
+            'behat_general::should_exist',
             ["//div[contains(@class, 'avatar-card') or contains(@class, 'avatar-block')]
             [contains(., '{$avatarname}')]//div[contains(@class, 'avatar-tags')]//img",
-            'xpath_element']);
+            'xpath_element']
+        );
     }
 
     /**
@@ -371,8 +428,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_secret_info_for_avatar($avatarname) {
-        $this->execute('behat_general::should_exist',
-            ['.avatar-secret', 'css_element']);
+        $this->execute(
+            'behat_general::should_exist',
+            ['.avatar-secret', 'css_element']
+        );
     }
 
     /**
@@ -382,8 +441,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_not_see_secret_info_for_avatar($avatarname) {
-        $this->execute('behat_general::should_not_exist',
-            ['.avatar-secret', 'css_element']);
+        $this->execute(
+            'behat_general::should_not_exist',
+            ['.avatar-secret', 'css_element']
+        );
     }
 
     /**
@@ -393,19 +454,10 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_should_see_additional_media_for_avatar($avatarname) {
-        $this->execute('behat_general::should_exist',
-            ['.avatar-media', 'css_element']);
-    }
-
-    /**
-     * Navigate to avatar report.
-     *
-     * @Given /^I navigate to avatar report for "(?P<activityname>(?:[^"]|\\")*)"$/
-     * @param string $activityname
-     */
-    public function i_navigate_to_avatar_report_for($activityname) {
-        $this->execute('behat_navigation::i_am_on_page_instance', [$activityname]);
-        $this->execute('behat_navigation::i_navigate_to_in_current_page_administration', ['Report']);
+        $this->execute(
+            'behat_general::should_exist',
+            ['.avatar-media', 'css_element']
+        );
     }
 
     /**
@@ -415,7 +467,9 @@ class behat_mod_avatar extends behat_base {
      * @param string $avatarname
      */
     public function i_view_avatar_info_for($avatarname) {
-        $this->execute('behat_general::i_click_on_in_the',
-            ['View', 'link', ".avatar-card[data-title=\"$avatarname\"]", 'css_element']);
+        $this->execute(
+            'behat_general::i_click_on_in_the',
+            ['View', 'link', ".avatar-card[data-title=\"$avatarname\"]", 'css_element']
+        );
     }
 }

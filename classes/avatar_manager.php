@@ -35,7 +35,6 @@ require_once($CFG->dirroot . '/backup/util/helper/restore_moodlexml_parser_proce
  * Avatar management class.
  */
 class avatar_manager {
-
     /**
      * Get all active avatars.
      *
@@ -73,22 +72,20 @@ class avatar_manager {
         $avatarid = $DB->insert_record('avatar_list', $data);
 
         $data->id = $avatarid;
+        $context = \core\context\system::instance();
 
-        $context = \context_system::instance();
         // Set tags for the new avatar.
         if (!empty($data->tags)) {
             \core_tag_tag::set_item_tags('mod_avatar', 'avatar', $avatarid, $context, $data->tags);
         }
 
-        // After successfully creating a new avatar instance.
-        $event = \mod_avatar\event\avatar_created::create([
+        \core\di::get(\core\hook\manager::class)->dispatch(new \mod_avatar\hook\after_avatar_saved($data, true));
+
+        \mod_avatar\event\avatar_created::create([
             'context' => $context,
             'objectid' => $avatarid,
-            'other' => [
-                'data' => $data,
-            ],
-        ]);
-        $event->trigger();
+            'other' => ['name' => $data->name],
+        ])->trigger();
 
         return $avatarid;
     }
@@ -101,5 +98,16 @@ class avatar_manager {
      */
     public static function get_avatar($avatarid) {
         return new \mod_avatar\avatar($avatarid);
+    }
+
+    /**
+     * Verify the avatar is exists.
+     *
+     * @param int $avatarid
+     * @return bool
+     */
+    public static function is_avatar_exists($avatarid) {
+        global $DB;
+        return $DB->record_exists('avatar_list', ['id' => $avatarid]);
     }
 }
