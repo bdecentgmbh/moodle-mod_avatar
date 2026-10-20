@@ -191,6 +191,47 @@ final class collection_test extends \advanced_testcase {
     }
 
     /**
+     * The checked API collects and upgrades only what is available; the activity only restricts collecting.
+     */
+    public function test_collect_and_upgrade_if_available(): void {
+        $course = $this->getDataGenerator()->create_course();
+        $user = $this->getDataGenerator()->create_and_enrol($course, 'student');
+        $instance = $this->generator->create_instance(['course' => $course->id]);
+        [, $cm] = get_course_and_cm_from_cmid($instance->cmid, 'avatar');
+        $avatar = $this->generator->create_avatar(['variants' => 2]);
+        $denied = $this->generator->create_avatar();
+        $this->setUser($user);
+
+        $this->redirectHook(avatar_availability::class, function (avatar_availability $hook) use ($denied) {
+            if ($hook->avatar->id == $denied->id) {
+                $hook->deny('Not for you');
+            }
+        });
+        $this->assertNull(collection::collect_if_available($denied, $user->id, $cm));
+        $this->assertFalse(collection::user_has_avatar($user->id, $denied->id));
+
+        $record = collection::collect_if_available($avatar, $user->id, $cm);
+        $this->assertEquals(1, $record->variant);
+        $this->assertEquals($cm->id, $record->cmid);
+
+        // A denied activity stops collecting and upgrading in it, unless upgrades skip the activity check.
+        $this->redirectHook(activity_availability::class, fn(activity_availability $hook) => $hook->deny('Limit reached'));
+        $other = $this->generator->create_avatar();
+        $this->assertNull(collection::collect_if_available($other, $user->id, $cm));
+        $this->assertNull(collection::upgrade_if_available($avatar, $user->id, $cm));
+        $this->assertEquals(2, collection::upgrade_if_available($avatar, $user->id, $cm, false)->variant);
+        // Outside of activities, only the avatar's availability applies.
+        $this->assertEquals(0, collection::collect_if_available($other, $user->id)->cmid);
+
+        try {
+            collection::upgrade_if_available($avatar, $user->id);
+            $this->fail('An avatar in its last variant cannot be upgraded.');
+        } catch (\moodle_exception $e) {
+            $this->assertEquals('alreadyfullyupgraded', $e->errorcode);
+        }
+    }
+
+    /**
      * Plugins can restrict an activity and add messages.
      */
     public function test_get_activity_availability(): void {

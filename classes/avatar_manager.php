@@ -24,12 +24,7 @@
 
 namespace mod_avatar;
 
-defined('MOODLE_INTERNAL') || die();
-
 use context_system;
-
-require_once($CFG->dirroot . '/backup/util/xml/parser/progressive_parser.class.php');
-require_once($CFG->dirroot . '/backup/util/helper/restore_moodlexml_parser_processor.class.php');
 
 /**
  * Avatar management class.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1-r2 (2026-10-20)
+
+- Collection limits and capacities hold for concurrent requests: the checks and the collection run
+  under locks (`collection::collect_if_available()`, `collection::upgrade_if_available()`).
+- Galleries, the course page in inline mode, *Manage avatars* and the usage report load images,
+  restrictions and counts with a fixed number of queries instead of some per avatar.
+- Automatic assignment runs after the transaction of the user change has committed.
+
 ## 1.1 (2026-10-20)
 
 First public release; supports Moodle 4.5 to 5.3.

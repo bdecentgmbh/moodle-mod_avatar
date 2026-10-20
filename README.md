@@ -26,7 +26,8 @@ their primary avatar can become their profile picture.
 ## Installation
 
 Install it like any other activity module, into `mod/avatar`, then visit *Site administration ▸
-Notifications*.
+Notifications*. To deploy from git, use the `MOODLE_xxx_STABLE` branch of your Moodle version (for example
+`MOODLE_405_STABLE`); `main` references the paid addons as git submodules.
 
 ## Documentation
 
