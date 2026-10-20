@@ -28,13 +28,18 @@ use mod_avatar\hook\avatar_availability;
  * The avatar collections of the users: who owns which avatar in which variant.
  *
  * This is the API for collecting, upgrading and querying avatars. It does not check capabilities: callers
- * (web services, pages, addons) check that the current user may act for the given user.
+ * (web services, pages, addons) check that the current user may act for the given user. To collect or upgrade
+ * for users, use {@see collect_if_available()} and {@see upgrade_if_available()}: they check the availability
+ * and change the collection as one step.
  *
  * @package    mod_avatar
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class collection {
+    /** @var int Seconds to wait for each lock of a change, see {@see with_locks()}. */
+    private const LOCK_TIMEOUT = 5;
+
     /**
      * The avatar of a user's collection.
      *
@@ -112,7 +117,76 @@ class collection {
     }
 
     /**
+     * Collects an avatar for a user if the activity and the avatar are available to the user.
+     *
+     * The availability checks and the collection run under locks on the activity, the avatar and the user, so
+     * that concurrent requests cannot exceed the limits that plugins check in the availability hooks (for
+     * example collection limits and capacities). Must not be called inside a database transaction, which would
+     * only commit after the locks are released.
+     *
+     * @param \stdClass $avatar The avatar (record of avatar_list).
+     * @param int $userid The user who gets the avatar.
+     * @param \cm_info|null $cm The activity in which it is collected, null for an assignment outside of activities.
+     * @return \stdClass|null The new record of avatar_user, null if the activity or the avatar is not available.
+     * @throws \moodle_exception When the user already owns the avatar, or other changes hold the locks too long.
+     */
+    public static function collect_if_available(\stdClass $avatar, int $userid, ?\cm_info $cm = null): ?\stdClass {
+        return self::with_locks($avatar, $userid, $cm, function () use ($avatar, $userid, $cm): ?\stdClass {
+            return self::is_available_for_change($avatar, $userid, $cm, true) ? self::collect($avatar, $userid, $cm) : null;
+        });
+    }
+
+    /**
+     * Upgrades the avatar of a user to its next variant if the activity and the avatar are available to the user.
+     *
+     * Like {@see collect_if_available()}, the checks and the upgrade run under locks.
+     *
+     * @param \stdClass $avatar The avatar (record of avatar_list).
+     * @param int $userid The user.
+     * @param \cm_info|null $cm The activity in which it is upgraded, null outside of activities.
+     * @param bool $checkactivity Whether the availability of the activity applies (for example its collection
+     *     limits); false lets teachers upgrade avatars beyond the limits.
+     * @return \stdClass|null The updated record of avatar_user, null if the activity or the avatar is not available.
+     * @throws \moodle_exception When the user does not own the avatar or owns its last variant, or other changes
+     *     hold the locks too long.
+     */
+    public static function upgrade_if_available(
+        \stdClass $avatar,
+        int $userid,
+        ?\cm_info $cm = null,
+        bool $checkactivity = true
+    ): ?\stdClass {
+        return self::with_locks($avatar, $userid, $cm, function () use ($avatar, $userid, $cm, $checkactivity): ?\stdClass {
+            return self::is_available_for_change($avatar, $userid, $cm, $checkactivity)
+                ? self::upgrade($avatar, $userid, $cm) : null;
+        });
+    }
+
+    /**
+     * Whether the avatar and, if wanted, the activity are available to the user.
+     *
+     * @param \stdClass $avatar The avatar.
+     * @param int $userid The user.
+     * @param \cm_info|null $cm The activity, if any.
+     * @param bool $checkactivity Whether the availability of the activity applies.
+     * @return bool
+     */
+    private static function is_available_for_change(\stdClass $avatar, int $userid, ?\cm_info $cm, bool $checkactivity): bool {
+        global $DB;
+
+        if ($cm && $checkactivity) {
+            $instance = $DB->get_record('avatar', ['id' => $cm->instance], '*', MUST_EXIST);
+            if (!self::get_activity_availability($cm, $instance, $userid)->is_available()) {
+                return false;
+            }
+        }
+        return self::is_avatar_available($avatar, $userid, $cm);
+    }
+
+    /**
      * Adds an avatar (its first variant) to the collection of a user and makes it the primary avatar.
+     *
+     * Does not check the availability; see {@see collect_if_available()}.
      *
      * @param \stdClass $avatar The avatar (record of avatar_list).
      * @param int $userid The user who gets the avatar.
@@ -168,6 +242,8 @@ class collection {
 
     /**
      * Upgrades the avatar of a user to its next variant and makes it the primary avatar.
+     *
+     * Does not check the availability; see {@see upgrade_if_available()}.
      *
      * @param \stdClass $avatar The avatar (record of avatar_list).
      * @param int $userid The user.
@@ -255,6 +331,38 @@ class collection {
     }
 
     /**
+     * Runs the checks and the change of a collection under locks on the activity, the avatar and the user.
+     *
+     * The locks are always taken in this order, so that concurrent changes cannot deadlock.
+     *
+     * @param \stdClass $avatar The avatar.
+     * @param int $userid The user.
+     * @param \cm_info|null $cm The activity, if any.
+     * @param callable $change Checks and changes the collection.
+     * @return \stdClass|null What $change returns.
+     * @throws \moodle_exception When a lock is not obtained within {@see LOCK_TIMEOUT} seconds.
+     */
+    private static function with_locks(\stdClass $avatar, int $userid, ?\cm_info $cm, callable $change): ?\stdClass {
+        $factory = \core\lock\lock_config::get_lock_factory('mod_avatar_collection');
+        $resources = array_filter([$cm ? "cm{$cm->id}" : null, "avatar{$avatar->id}", "user{$userid}"]);
+        $locks = [];
+        try {
+            foreach ($resources as $resource) {
+                $lock = $factory->get_lock($resource, self::LOCK_TIMEOUT);
+                if (!$lock) {
+                    throw new \moodle_exception('collectionbusy', 'mod_avatar');
+                }
+                $locks[] = $lock;
+            }
+            return $change();
+        } finally {
+            foreach (array_reverse($locks) as $lock) {
+                $lock->release();
+            }
+        }
+    }
+
+    /**
      * Syncs the profile picture and updates the completion of the activity after a collection changed.
      *
      * @param \stdClass $avatar The avatar.
@@ -263,6 +371,8 @@ class collection {
      */
     private static function after_change(\stdClass $avatar, \stdClass $record, ?\cm_info $cm): void {
         global $CFG;
+
+        local\usage::reset_caches();
 
         if (get_config('mod_avatar', 'profileimagesync')) {
             util::update_user_profile_picture($record->userid, $avatar->id, $record->variant);

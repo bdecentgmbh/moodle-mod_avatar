@@ -58,19 +58,14 @@ class collect_avatar extends external_api {
             ['avatarid' => $avatarid, 'cmid' => $cmid]
         );
 
-        [$cm, $instance, $avatar] = self::get_activity_and_avatar($cmid, $avatarid, 'mod/avatar:collect');
+        [$cm, , $avatar] = self::get_activity_and_avatar($cmid, $avatarid, 'mod/avatar:collect');
 
         if (collection::get_user_avatar($USER->id, $avatar->id)) {
             return ['success' => false, 'message' => get_string('alreadycollected', 'mod_avatar')];
         }
-        if (
-            !collection::get_activity_availability($cm, $instance, $USER->id)->is_available()
-                || !collection::is_avatar_available($avatar, $USER->id, $cm)
-        ) {
+        if (!collection::collect_if_available($avatar, $USER->id, $cm)) {
             return ['success' => false, 'message' => get_string('avatarnotavailable', 'mod_avatar')];
         }
-
-        collection::collect($avatar, $USER->id, $cm);
         \core\notification::success(get_string('avatarcollected', 'mod_avatar'));
         return ['success' => true, 'message' => get_string('avatarcollected', 'mod_avatar')];
     }
