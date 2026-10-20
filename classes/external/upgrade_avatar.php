@@ -57,7 +57,7 @@ class upgrade_avatar extends external_api {
             ['avatarid' => $avatarid, 'cmid' => $cmid]
         );
 
-        [$cm, $instance, $avatar] = collect_avatar::get_activity_and_avatar($cmid, $avatarid, 'mod/avatar:upgrade');
+        [$cm, , $avatar] = collect_avatar::get_activity_and_avatar($cmid, $avatarid, 'mod/avatar:upgrade');
 
         $useravatar = collection::get_user_avatar($USER->id, $avatar->id);
         if (!$useravatar) {
@@ -66,14 +66,9 @@ class upgrade_avatar extends external_api {
         if ($useravatar->variant >= $avatar->variants) {
             return ['success' => false, 'message' => get_string('alreadyfullyupgraded', 'mod_avatar')];
         }
-        if (
-            !collection::get_activity_availability($cm, $instance, $USER->id)->is_available()
-                || !collection::is_avatar_available($avatar, $USER->id, $cm)
-        ) {
+        if (!collection::upgrade_if_available($avatar, $USER->id, $cm)) {
             return ['success' => false, 'message' => get_string('avatarnotavailable', 'mod_avatar')];
         }
-
-        collection::upgrade($avatar, $USER->id, $cm);
         \core\notification::success(get_string('avatarupgraded', 'mod_avatar'));
         return ['success' => true, 'message' => get_string('avatarupgraded', 'mod_avatar')];
     }
