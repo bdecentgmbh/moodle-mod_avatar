@@ -18,7 +18,6 @@ namespace mod_avatar\external;
 
 use core_external\external_api;
 use mod_avatar\collection;
-use PHPUnit\Framework\Attributes\CoversClass;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -28,13 +27,13 @@ require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 /**
  * Tests of the web services that collect and upgrade avatars.
  *
+ * @covers     \mod_avatar\external\collect_avatar
+ * @covers     \mod_avatar\external\upgrade_avatar
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(collect_avatar::class)]
-#[CoversClass(upgrade_avatar::class)]
 final class collect_avatar_test extends \externallib_advanced_testcase {
     /** @var \mod_avatar_generator */
     protected $generator;

@@ -16,8 +16,6 @@
 
 namespace mod_avatar\backup;
 
-use PHPUnit\Framework\Attributes\CoversClass;
-
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -27,13 +25,13 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 /**
  * Tests of the backup and restore of avatar activities.
  *
+ * @covers     \backup_avatar_activity_structure_step
+ * @covers     \restore_avatar_activity_structure_step
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(\backup_avatar_activity_structure_step::class)]
-#[CoversClass(\restore_avatar_activity_structure_step::class)]
 final class restore_test extends \advanced_testcase {
     /**
      * Backs up an activity and extracts it for a restore.

@@ -18,7 +18,6 @@ namespace mod_avatar;
 
 use mod_avatar\hook\after_instance_saved;
 use mod_avatar\hook\before_instance_deleted;
-use PHPUnit\Framework\Attributes\CoversFunction;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -28,15 +27,15 @@ require_once($CFG->dirroot . '/mod/avatar/lib.php');
 /**
  * Tests of the library functions of the avatar activity.
  *
+ * @covers     ::avatar_add_instance
+ * @covers     ::avatar_update_instance
+ * @covers     ::avatar_delete_instance
+ * @covers     ::mod_avatar_output_fragment_avatar_usage
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversFunction('avatar_add_instance')]
-#[CoversFunction('avatar_update_instance')]
-#[CoversFunction('avatar_delete_instance')]
-#[CoversFunction('mod_avatar_output_fragment_avatar_usage')]
 final class lib_test extends \advanced_testcase {
     /**
      * Saving and deleting an activity dispatches the hooks; collected avatars stay with the users.

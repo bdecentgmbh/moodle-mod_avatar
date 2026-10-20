@@ -16,18 +16,16 @@
 
 namespace mod_avatar;
 
-use PHPUnit\Framework\Attributes\CoversClass;
-
 /**
  * Tests of the avatars an activity offers, and of their usage.
  *
+ * @covers     \mod_avatar\activity
+ * @covers     \mod_avatar\local\usage
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(activity::class)]
-#[CoversClass(local\usage::class)]
 final class activity_test extends \advanced_testcase {
     /**
      * An activity offers all active avatars, or those with one of its tags (exact, case insensitive).

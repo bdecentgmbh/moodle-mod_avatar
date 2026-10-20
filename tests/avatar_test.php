@@ -18,18 +18,17 @@ namespace mod_avatar;
 
 use mod_avatar\hook\after_avatar_saved;
 use mod_avatar\hook\before_avatar_deleted;
-use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests of the avatars of the library.
  *
+ * @covers     \mod_avatar\avatar
+ * @covers     \mod_avatar\avatar_manager
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(avatar::class)]
-#[CoversClass(avatar_manager::class)]
 final class avatar_test extends \advanced_testcase {
     /**
      * Creating, updating and deleting avatars dispatches the hooks and cleans up files, tags and collections.

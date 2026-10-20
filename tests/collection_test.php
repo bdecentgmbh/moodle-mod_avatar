@@ -18,19 +18,18 @@ namespace mod_avatar;
 
 use mod_avatar\hook\activity_availability;
 use mod_avatar\hook\avatar_availability;
-use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests of the avatar collections of the users.
  *
+ * @covers     \mod_avatar\collection
+ * @covers     \mod_avatar\hook\avatar_availability
+ * @covers     \mod_avatar\hook\activity_availability
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(collection::class)]
-#[CoversClass(avatar_availability::class)]
-#[CoversClass(activity_availability::class)]
 final class collection_test extends \advanced_testcase {
     /** @var \mod_avatar_generator */
     protected $generator;

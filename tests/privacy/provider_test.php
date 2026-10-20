@@ -21,17 +21,16 @@ use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 use core_privacy\tests\provider_testcase;
-use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests of the privacy provider.
  *
+ * @covers     \mod_avatar\privacy\provider
  * @package    mod_avatar
  * @category   test
  * @copyright  2026 bdecent GmbH <https://bdecent.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(provider::class)]
 final class provider_test extends provider_testcase {
     /** @var \stdClass */
     protected $user1;
