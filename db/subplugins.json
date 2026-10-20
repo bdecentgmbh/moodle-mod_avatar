@@ -1,0 +1,8 @@
+{
+    "plugintypes": {
+        "avataraddon": "mod/avatar/addon"
+    },
+    "subplugintypes": {
+        "avataraddon": "addon"
+    }
+}
