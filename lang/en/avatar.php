@@ -62,6 +62,7 @@ $string['avatarsnothingtodisplay'] = 'There aren\'t any avatars created yet. Ple
 $string['avatarthumbnail'] = 'Avatar thumbnail';
 $string['avatarupgraded'] = 'Avatar upgraded successfully';
 $string['clickforavatarinfo'] = 'Click on one of the following avatars to get more information.';
+$string['collectionbusy'] = 'Many avatars are being collected at the moment. Please try again.';
 $string['completioncollect'] = 'Collect avatars';
 $string['completioncollect_desc'] = 'Student must collect at least one avatar';
 $string['completioncollect_help'] = 'Student must collect at least one avatar';
