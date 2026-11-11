@@ -1,13 +1,17 @@
 name: Moodle Plugin CI
 
-# Runs on pull requests only.
+# Runs on every push to main and on every pull request (feature branches are tested through their pull request
+# only). The release workflow (release.yml) waits for the run on the tagged commit, which on main is a merge commit.
 #
 # Scope: the free mod_avatar core. The addons under addon/ are private git submodules; they are NOT
 # checked out here (submodules: false) and each addon repository runs its own CI against mod_avatar.
 # Uninitialised submodules leave empty directories behind, which Moodle would treat as broken
 # plugins, so they are removed before the install step.
 on:
+  push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:

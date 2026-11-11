@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1-r2 (2026-10-20)
+## 1.1 R2 (2026102001)
 
 - Collection limits and capacities hold for concurrent requests: the checks and the collection run
   under locks (`collection::collect_if_available()`, `collection::upgrade_if_available()`).
@@ -8,7 +8,7 @@
   restrictions and counts with a fixed number of queries instead of some per avatar.
 - Automatic assignment runs after the transaction of the user change has committed.
 
-## 1.1 (2026-10-20)
+## 1.1 (2026102000)
 
 First public release; supports Moodle 4.5 to 5.3.
 
