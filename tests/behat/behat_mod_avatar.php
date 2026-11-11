@@ -396,11 +396,13 @@ class behat_mod_avatar extends behat_base {
     public function i_should_see_avatar_with_variant_level($avatarname, $level) {
 
         $imagename = 'test_avatar_thumbnail_' . $level . '.png';
+        // Avatars of the data generator have the same file name in every variant: their file area tells the variant.
+        $areas = "contains(@src, '/mod_avatar/avatarthumbnail{$level}/') or contains(@src, '/mod_avatar/avatarimage{$level}/')";
 
         $this->execute(
             'behat_general::should_exist',
             ["//div[contains(@class, 'avatar-card') or contains(@class, 'avatar-block')]
-            //img[contains(@src, '{$imagename}') or contains(@src, 'test_avatar_{$level}.png')
+            //img[(contains(@src, '{$imagename}') or contains(@src, 'test_avatar_{$level}.png') or {$areas})
             and contains(@alt, '{$avatarname}')]",
             'xpath_element']
         );

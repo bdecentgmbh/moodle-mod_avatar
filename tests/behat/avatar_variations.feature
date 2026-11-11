@@ -41,9 +41,10 @@ Feature: Managing avatar variations and upgrades
     And I upload "mod/avatar/tests/fixtures/test_avatar_3.png" file to "Avatar image 3" filemanager
     And I press "Save changes"
     Then I should see "multi variant Avatar" in the "avatars" "table"
-    And I add an avatar activity to course "Course 1" with:
-      | Avatar name | Multi variant avatar             |
-      | Description | Multiple variant avatar activity |
+    And the following "activities" exist:
+      | activity | name                 | intro                            | course | section |
+      | avatar   | Multi variant avatar | Multiple variant avatar activity | C1     | 1       |
+    And I am on "Course 1" course homepage
     And I click on "Multi variant avatar" "link" in the ".activity" "css_element"
     And I should see "multi variant Avatar" in the "#page-mod-avatar-view .mod_avatar" "css_element"
     And I click on "multi variant Avatar" "link" in the ".mod_avatar .avatar-gallery" "css_element"
@@ -52,14 +53,12 @@ Feature: Managing avatar variations and upgrades
 
   @javascript
   Scenario: Student collects and upgrades a multi variant avatar
-    Given I log in as "admin"
-    And I create a multi variant avatar "Upgradable Avatar" with 3 variants
-    And I log out
-    And I log in as "teacher1"
-    And I add an avatar activity to course "Course 1" with:
-      | Avatar name | Collect and Upgrade Avatars                  |
-      | Description | Collect and upgrade avatars in this activity |
-    And I log out
+    Given the following "mod_avatar > avatars" exist:
+      | name              | description                          | tags                 | variants |
+      | Upgradable Avatar | multi variant avatar with 3 variants | multi, variant, test | 3        |
+    And the following "activities" exist:
+      | activity | name                        | intro                                        | course | section |
+      | avatar   | Collect and Upgrade Avatars | Collect and upgrade avatars in this activity | C1     | 1       |
     And I log in as "student1"
     And I am on "Course 1" course homepage
     And I follow "Collect and Upgrade Avatars"
