@@ -16,48 +16,39 @@ Feature: Using the avatar activity in a course
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
       | student1 | C1     | student        |
-    And I log in as "admin"
-    And I create avatar with the following fields to these values:
-      | Avatar name | Cool Avatar               |
-      | Description | A cool avatar for testing |
-      | Tags        | cool, test                |
-    And I create avatar with the following fields to these values:
-      | Avatar name | Fantasy Avatar               |
-      | Description | A fantasy avatar for testing |
-      | Tags        | fantasy, medieval            |
-    And I create avatar with the following fields to these values:
-      | Avatar name | Hero Avatar                     |
-      | Description | A super hero avatar for testing |
-      | Tags        | hero, cartoon                   |
-    And I create avatar with the following fields to these values:
-      | Avatar name | Sports Avatar               |
-      | Description | A sports avatar for testing |
-      | Tags        | sports, athletic            |
+    And the following "mod_avatar > avatars" exist:
+      | name           | description                     | tags              |
+      | Cool Avatar    | A cool avatar for testing       | cool, test        |
+      | Fantasy Avatar | A fantasy avatar for testing    | fantasy, medieval |
+      | Hero Avatar    | A super hero avatar for testing | hero, cartoon     |
+      | Sports Avatar  | A sports avatar for testing     | sports, athletic  |
 
   @javascript
   Scenario: Add an avatar activity to a course
     When I log in as "teacher1"
     And I am on "Course 1" course homepage with editing mode on
     And I add a "avatar" activity to course "Course 1" section "1" and I fill the form with:
-      | Avatar name     | Collect Avatars                       |
-      | Description     | Collect cool avatars in this activity |
-      | showdescription | 1                                     |
+      | Avatar name      | Collect Avatars                       |
+      | Description      | Collect cool avatars in this activity |
+      | showdescription  | 1                                     |
+      | Avatar selection | Specific tags                         |
+      | Specific tags    | cool, sports                          |
     Then I should see "Collect Avatars"
     And I should see "Collect cool avatars in this activity"
     Then I click on "Collect Avatars" "link" in the ".activityname" "css_element"
     And I should see "Pick your avatar" in the ".mod_avatar.display-page " "css_element"
     And I should see "Cool Avatar" in the " .mod_avatar .avatar-gallery" "css_element"
+    And I should see "Sports Avatar" in the " .mod_avatar .avatar-gallery" "css_element"
+    And I should not see "Fantasy Avatar" in the " .mod_avatar .avatar-gallery" "css_element"
     # Teachers cannot collect avatars, so they see no Pick buttons.
     And "Pick" "button" should not exist in the ".mod_avatar .avatar-gallery" "css_element"
 
   @javascript
   Scenario: Student collects an avatar
-    Given I log in as "teacher1"
-    And I add an avatar activity to course "Course 1" with:
-      | Avatar name | Collect Avatars                       |
-      | Description | Collect cool avatars in this activity |
-    When I log out
-    And I log in as "student1"
+    Given the following "activities" exist:
+      | activity | name            | intro                                 | course | section |
+      | avatar   | Collect Avatars | Collect cool avatars in this activity | C1     | 1       |
+    When I log in as "student1"
     And I am on "Course 1" course homepage
     And I follow "Collect Avatars"
     Then I should see "Cool Avatar"
@@ -68,14 +59,11 @@ Feature: Using the avatar activity in a course
 
   @javascript
   Scenario Outline: Avatar activity: Avatar selection based on tags
-    When I log in as "teacher1"
-    And I add an avatar activity to course "Course 1" with:
-      | Avatar name      | Avatar selection           |
-      | Description      | Avatars list based on tags |
-      | Avatar selection | Specific tags              |
-      | Specific tags    | <tags>                     |
-    And I log out
-    And I log in as "student1"
+    # avatarselection 1: specific tags.
+    Given the following "activities" exist:
+      | activity | name             | intro                      | course | section | avatarselection | specifictags |
+      | avatar   | Avatar selection | Avatars list based on tags | C1     | 1       | 1               | <tags>       |
+    When I log in as "student1"
     And I am on "Course 1" course homepage
     And I follow "Avatar selection"
     Then I <fantasyshouldornot> see "Fantasy Avatar"
