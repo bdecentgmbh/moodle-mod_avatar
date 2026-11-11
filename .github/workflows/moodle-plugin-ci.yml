@@ -40,26 +40,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The supported Moodle releases, each with its lowest and highest PHP version on alternating databases.
+        # One job per supported Moodle release, with the highest PHP version it supports (as in Moodle's own CI),
+        # on alternating databases.
         include:
-          - php: '8.1'
-            moodle-branch: 'MOODLE_405_STABLE'
-            database: 'pgsql'
           - php: '8.3'
             moodle-branch: 'MOODLE_405_STABLE'
-            database: 'mariadb'
-          - php: '8.2'
+            database: 'pgsql'
+          - php: '8.4'
             moodle-branch: 'MOODLE_501_STABLE'
             database: 'mariadb'
           - php: '8.4'
             moodle-branch: 'MOODLE_502_STABLE'
             database: 'pgsql'
-          - php: '8.3'
-            moodle-branch: 'MOODLE_503_STABLE'
-            database: 'mariadb'
           - php: '8.4'
             moodle-branch: 'MOODLE_503_STABLE'
-            database: 'pgsql'
+            database: 'mariadb'
 
     steps:
       - name: Check out repository code
