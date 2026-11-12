@@ -18,16 +18,13 @@ Feature: Avatar information display
       | teacher1 | C1     | editingteacher |
       | student1 | C1     | student        |
       | student2 | C1     | student        |
-    And I log in as "admin"
-    And I create a multi variant avatar "Test Avatar" with 3 variants
-    And I create avatar with the following fields to these values:
-      | Avatar name | Basic Avatar               |
-      | Description | A basic avatar for testing |
-      | Tags        | basic, test, example       |
-    And I add an avatar activity to course "Course 1" with:
-      | Avatar name | Avatar Information |
-      | Description | Test avatar info   |
-    And I log out
+    And the following "mod_avatar > avatars" exist:
+      | name         | description                          | tags                 | variants |
+      | Test Avatar  | multi variant avatar with 3 variants | multi, variant, test | 3        |
+      | Basic Avatar | A basic avatar for testing           | basic, test, example | 1        |
+    And the following "activities" exist:
+      | activity | name               | intro            | course | section |
+      | avatar   | Avatar Information | Test avatar info | C1     | 1       |
 
   @javascript
   Scenario Outline: Verify basic avatar information display
@@ -64,6 +61,9 @@ Feature: Avatar information display
 
   @javascript
   Scenario Outline: Avatar - Verify different tag display formats
+    Given the following "mod_avatar > avatars" exist:
+      | name          | description   | tags   |
+      | <avatar_name> | <description> | <tags> |
     When I log in as "admin"
     And I navigate to "Plugins > Avatar > General settings" in site administration
     And I should see "Tag images"
@@ -71,10 +71,6 @@ Feature: Avatar information display
     And I press "Save changes"
     And I upload "/mod/avatar/tests/fixtures/fantasy.png" file to "Tag images" filemanager
     And I press "Save changes"
-    And I create avatar with the following fields to these values:
-      | Avatar name | <avatar_name> |
-      | Description | <description> |
-      | Tags        | <tags>        |
     And I log in as "student1"
     And I am on "Course 1" course homepage
     And I follow "Avatar Information"
@@ -93,14 +89,13 @@ Feature: Avatar information display
 
   @javascript
   Scenario: Avatar - Profile image synchronization setting enable and disabled
-    Given I log in as "admin"
+    Given the following "mod_avatar > avatars" exist:
+      | name                | description       | variants |
+      | Profile Sync Avatar | Test profile sync | 2        |
+    And I log in as "admin"
     And I navigate to "Plugins > Avatar > General settings" in site administration
     And I set the field "Profile image synchronization" to "0"
     And I press "Save changes"
-    And I create avatar with the following fields to these values:
-      | Avatar name        | Profile Sync Avatar |
-      | Description        | Test profile sync   |
-      | Number of variants | 2                   |
     And I log in as "student1"
     And I am on "Course 1" course homepage
     And I follow "Avatar Information"

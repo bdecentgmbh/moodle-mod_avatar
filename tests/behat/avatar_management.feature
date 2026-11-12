@@ -44,11 +44,11 @@ Feature: Managing avatars in the avatar module
 
   @javascript @_file_upload
   Scenario: Avatar management - Edit an existing avatar
+    Given the following "mod_avatar > avatars" exist:
+      | name        | description             | tags         |
+      | Test Avatar | Test avatar description | test, avatar |
     When I log in as "admin"
-    And I create avatar with the following fields to these values:
-      | Avatar name | Test Avatar             |
-      | Description | Test avatar description |
-      | Tags        | test, avatar            |
+    And I navigate to avatar management
     And I should see "Test Avatar" in the "avatars" "table"
     And I click on ".action-edit" "css_element" in the "Test Avatar" "table_row"
     And I expand all fieldsets
@@ -62,15 +62,12 @@ Feature: Managing avatars in the avatar module
 
   @javascript
   Scenario: Avatar management - Archive an avatar
+    Given the following "mod_avatar > avatars" exist:
+      | name        | description             | tags         |
+      | Test Avatar | Test avatar description | test, avatar |
+      | Cool Avatar | Test avatar description | test, avatar |
     When I log in as "admin"
-    And I create avatar with the following fields to these values:
-      | Avatar name | Test Avatar             |
-      | Description | Test avatar description |
-      | Tags        | test, avatar            |
-    And I create avatar with the following fields to these values:
-      | Avatar name | Cool Avatar             |
-      | Description | Test avatar description |
-      | Tags        | test, avatar            |
+    And I navigate to avatar management
     And I should see "Test Avatar" in the "avatars" "table"
     # And I archive avatar "Test Avatar"
     And I click on ".action-archive" "css_element" in the "Test Avatar" "table_row"
@@ -81,11 +78,11 @@ Feature: Managing avatars in the avatar module
 
   @javascript
   Scenario: Avatar management - Restore an archived avatar
+    Given the following "mod_avatar > avatars" exist:
+      | name        | description             | tags         |
+      | Test Avatar | Test avatar description | test, avatar |
     When I log in as "admin"
-    And I create avatar with the following fields to these values:
-      | Avatar name | Test Avatar             |
-      | Description | Test avatar description |
-      | Tags        | test, avatar            |
+    And I navigate to avatar management
     And I click on ".action-archive" "css_element" in the "Test Avatar" "table_row"
     And I click on "Yes" "button" in the ".modal" "css_element"
     And I navigate to archived avatars
@@ -97,11 +94,11 @@ Feature: Managing avatars in the avatar module
 
   @javascript
   Scenario: Avatar management - Delete an archived avatar
+    Given the following "mod_avatar > avatars" exist:
+      | name        | description             | tags         |
+      | Test Avatar | Test avatar description | test, avatar |
     When I log in as "admin"
-    And I create avatar with the following fields to these values:
-      | Avatar name | Test Avatar             |
-      | Description | Test avatar description |
-      | Tags        | test, avatar            |
+    And I navigate to avatar management
     And I click on ".action-archive" "css_element" in the "Test Avatar" "table_row"
     And I click on "Yes" "button" in the ".modal" "css_element"
     And I navigate to archived avatars
