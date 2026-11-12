@@ -93,14 +93,33 @@ $callbacks = [
   `moodle-avataraddon_<name>`, referenced as git submodules in `addon/<name>`. `.gitignore`
   ignores any other folder under `addon/`, and `.gitattributes` keeps the empty submodule
   placeholders out of source archives.
-- The CI of `moodle-mod_avatar` runs without the submodules; each addon repository runs its own CI
-  against `mod_avatar`.
-- Releases are tagged `vX.Y-rN` (e.g. `v1.1-r1`). After publishing a release, the workflow *Stable
-  branches* of `moodle-mod_avatar` (started by hand with the tag) builds its `MOODLE_xxx_STABLE`
-  branches: the free plugin without the addon submodules, for sites that deploy from git.
-- The private `moodle-mod_avatar_pro` repository only holds a publish workflow. It builds the
-  bundle (mod_avatar with all addons inlined) from a tag of `moodle-mod_avatar` and commits it to
-  its `MOODLE_xxx_STABLE` branches, with a release ZIP.
+- The CI of `moodle-mod_avatar` runs without the submodules, on pull requests and pushes to `main`;
+  each addon repository runs its own CI against `mod_avatar`.
+- Releases are tagged `vX.Y-rN` (e.g. `v1.1-r1`); `$plugin->release` stays `X.Y`. `CHANGES.md` has
+  a section per release, `## 1.1 (2026102000)` for R1 and `## 1.1 R2 (2026102001)` from R2 on.
+- The private `moodle-mod_avatar_pro` repository holds the publish and release workflows of the
+  bundle (mod_avatar with all addons inlined), which it commits to its `MOODLE_xxx_STABLE` branches
+  and releases with one ZIP.
+
+To publish a release:
+
+1. Merge `dev` into `main` with the new version and its `CHANGES.md` section. CI runs on the merge
+   commit.
+2. Publish a GitHub release of `main` with the tag. The workflow *Release* (`release.yml`) checks the
+   tag against `version.php`, that it is on `main`, the `CHANGES.md` section and CI on the commit.
+   It then attaches `mod_avatar_<tag>.zip` (folder `avatar/`, without the addon placeholders) and
+   updates bdecent.de and staging.bdecent.de: the ZIP goes to the shop products whose *GitHub* tab
+   names `moodle-mod_avatar`, and a draft release note is created. A pre-release (tick *Set as a
+   pre-release*, any branch, e.g. `v1.2-rc1`) goes to staging only; its commit needs a CI run too
+   (its pull request, or *Moodle Plugin CI ▸ Run workflow* on the branch). The Moodle Marketplace
+   is off until mod_avatar is listed there: then set `MARKETPLACE` in `release.yml` to `true`.
+   Re-run or dry run: *Actions ▸ Release ▸ Run workflow* with the tag.
+3. *Actions ▸ Stable branches ▸ Run workflow* with the tag builds the `MOODLE_xxx_STABLE` branches
+   of `moodle-mod_avatar`: the free plugin without the addon submodules, for sites that deploy from
+   git.
+4. In `moodle-mod_avatar_pro`, *Actions ▸ Publish Avatar bundle ▸ Run workflow* with the tag
+   publishes the bundle and starts its release workflow, which updates the shop products of the
+   bundle (see its README).
 
 ## Tests
 
